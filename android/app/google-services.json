@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "475117397868",
+    "project_id": "kumplain-9c47a",
+    "storage_bucket": "kumplain-9c47a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475117397868:android:dc1e97e103d6751daaf549",
+        "android_client_info": {
+          "package_name": "com.example.kumplain"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "475117397868-g232gqrtseublkgls2bp45tv581fvdf1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_3nyMclqwESPa5IZ-op5lSRTAZifXQUs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "475117397868-g232gqrtseublkgls2bp45tv581fvdf1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "475117397868-rpi4dmj6vdad8c5pu4d2lcje7pki9a2u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.kumplainV1"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
