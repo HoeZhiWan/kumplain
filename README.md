@@ -1,4 +1,4 @@
-# kumplain_v1
+# kumplain
 
 A new Flutter project.
 
