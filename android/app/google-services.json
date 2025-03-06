@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475117397868",
+    "project_id": "kumplain-9c47a",
+    "storage_bucket": "kumplain-9c47a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475117397868:android:bfcea913739f0c06aaf549",
+        "android_client_info": {
+          "package_name": "com.example.kumplain"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_3nyMclqwESPa5IZ-op5lSRTAZifXQUs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

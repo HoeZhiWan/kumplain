@@ -1,4 +1,4 @@
-package com.example.kumplain_v1
+package com.example.kumplain
 
 import io.flutter.embedding.android.FlutterActivity
 

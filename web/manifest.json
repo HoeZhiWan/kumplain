@@ -1,6 +1,6 @@
 {
-    "name": "kumplain_v1",
-    "short_name": "kumplain_v1",
+    "name": "kumplain",
+    "short_name": "kumplain",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
