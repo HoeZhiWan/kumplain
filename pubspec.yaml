@@ -1,4 +1,4 @@
-name: kumplain_v1
+name: kumplain
 description: "Kumpl-AI-n is a social media platform that allows users to share their complaints in their local communities."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
