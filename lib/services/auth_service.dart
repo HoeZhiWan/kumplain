@@ -5,10 +5,10 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Get current user
+  // Get the current logged in user
   User? get currentUser => _auth.currentUser;
 
-  // Stream of auth state changes
+  // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // Sign in with Google
@@ -16,8 +16,10 @@ class AuthService {
     try {
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
-      if (googleUser == null) return null;
+
+      if (googleUser == null) {
+        return null;
+      }
 
       // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -28,10 +30,10 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with the Google credential
+      // Once signed in, return the UserCredential
       return await _auth.signInWithCredential(credential);
     } catch (e) {
-      print('Error signing in with Google: $e');
+      print('Error during Google Sign In: $e');
       return null;
     }
   }
