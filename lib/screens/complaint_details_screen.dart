@@ -280,26 +280,31 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    RichText(
-                                      text: TextSpan(
-                                        style: DefaultTextStyle.of(context).style,
-                                        children: [
-                                          TextSpan(
-                                            text: comment['username'],
-                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          comment['username'],
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
                                           ),
-                                          const TextSpan(text: ' '),
-                                          TextSpan(text: comment['text']),
-                                        ],
-                                      ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          comment['timeAgo'],
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      comment['timeAgo'],
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
+                                      comment['text'],
+                                      style: const TextStyle(fontSize: 14),
                                     ),
                                   ],
                                 ),

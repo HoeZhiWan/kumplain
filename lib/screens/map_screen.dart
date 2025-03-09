@@ -14,20 +14,29 @@ class _MapScreenState extends State<MapScreen> {
     {
       'id': '1',
       'title': 'Broken street light',
+      'description': 'The street light has been broken for weeks now. It\'s becoming a safety hazard at night.',
       'latitude': 1.3521,
       'longitude': 103.8198,
+      'reportedBy': 'john_doe',
+      'reportedAt': '2 hours ago',
     },
     {
       'id': '2',
       'title': 'Pothole on road',
+      'description': 'There\'s a large pothole that\'s damaging vehicles. It needs immediate repair.',
       'latitude': 1.3423,
       'longitude': 103.8353,
+      'reportedBy': 'amie_johnson',
+      'reportedAt': '4 hours ago',
     },
     {
       'id': '3', 
       'title': 'Garbage not collected',
+      'description': 'The garbage has not been collected for over a week now. It\'s starting to smell and attract pests.',
       'latitude': 1.3644,
       'longitude': 103.9915,
+      'reportedBy': 'harry_potter',
+      'reportedAt': '12 hours ago',
     },
   ];
 
