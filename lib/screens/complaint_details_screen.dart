@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+// Add import for the new image viewer screen
+import 'image_viewer_screen.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   final String complaintId;
@@ -10,6 +12,7 @@ class ComplaintDetailsScreen extends StatefulWidget {
   final String reportedBy;
   final String reportedAt;
   final int initialVotes;
+  final String? imageUrl; // Could be a network URL or asset path
 
   const ComplaintDetailsScreen({
     super.key,
@@ -21,6 +24,7 @@ class ComplaintDetailsScreen extends StatefulWidget {
     required this.reportedBy,
     required this.reportedAt,
     this.initialVotes = 0,
+    this.imageUrl,
   });
 
   @override
@@ -104,6 +108,12 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     });
   }
 
+  // Helper method to check if a string is a network URL - improved implementation
+  bool _isNetworkImage(String? path) {
+    if (path == null || path.isEmpty) return false;
+    return path.startsWith('http://') || path.startsWith('https://');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,17 +141,115 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Complaint image
-                  Container(
-                    height: 300,
-                    width: double.infinity,
-                    color: Colors.grey[400],
-                    child: const Center(
-                      child: Icon(
-                        Icons.image,
-                        size: 100,
-                        color: Colors.white,
-                      ),
+                  // Modified Complaint image with tap to zoom
+                  GestureDetector(
+                    onTap: () {
+                      if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ImageViewerScreen(
+                              imageUrl: widget.imageUrl!,
+                              isNetworkImage: _isNetworkImage(widget.imageUrl),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      height: 300,
+                      width: double.infinity,
+                      color: Colors.grey[400],
+                      child: widget.imageUrl != null && widget.imageUrl!.isNotEmpty
+                          ? Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                _isNetworkImage(widget.imageUrl)
+                                    ? Image.network(
+                                        widget.imageUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          debugPrint('Error loading image: $error');
+                                          return const Center(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.broken_image,
+                                                  size: 60,
+                                                  color: Colors.white70,
+                                                ),
+                                                SizedBox(height: 8),
+                                                Text(
+                                                  'Could not load image',
+                                                  style: TextStyle(color: Colors.white70),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded / 
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    : Image.asset(
+                                        widget.imageUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          print('Error loading asset: $error');
+                                          return const Center(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.broken_image,
+                                                  size: 60,
+                                                  color: Colors.white70,
+                                                ),
+                                                SizedBox(height: 8),
+                                                Text(
+                                                  'Could not load image',
+                                                  style: TextStyle(color: Colors.white70),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                // Overlay hint to indicate zoom capability
+                                Positioned(
+                                  right: 10,
+                                  bottom: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.zoom_in,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Center(
+                              child: Icon(
+                                Icons.image_not_supported,
+                                size: 60,
+                                color: Colors.white70,
+                              ),
+                            ),
                     ),
                   ),
 

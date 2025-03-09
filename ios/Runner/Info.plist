@@ -45,5 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Add these permission keys -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app needs access to location to show your position on the map and to accurately report complaints.</string>
+    
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>This app needs access to location to show your position on the map and to accurately report complaints.</string>
 </dict>
 </plist>

@@ -62,6 +62,10 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
         'description': _descriptionController.text,
         'latitude': widget.latitude,
         'longitude': widget.longitude,
+        'reportedBy': 'current_user', // Add user info
+        'reportedAt': 'Just now', // Add timestamp
+        'votes': 0, // Initialize votes
+        'imageUrl': _isImageSelected ? 'https://via.placeholder.com/800x600.png?text=Sample+Complaint+Image' : null,
       };
       
       // Return to map screen and show the new complaint

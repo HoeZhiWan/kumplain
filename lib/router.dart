@@ -10,36 +10,36 @@ import 'screens/profile_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/complaint_details_screen.dart';
 
-// Mock data for complaints to be accessible app-wide
+// Updated mock data for complaints with coordinates around Universiti Malaya
 final List<Map<String, dynamic>> mockComplaints = [
   {
     'id': '1',
     'title': 'Broken street light',
     'description': 'The street light has been broken for weeks now. It\'s becoming a safety hazard at night.',
-    'latitude': 1.3521,
-    'longitude': 103.8198,
+    'latitude': 3.1211, // Near UM main entrance
+    'longitude': 101.6556,
     'reportedBy': 'citizen123',
     'reportedAt': '3 hours ago',
-    'imageUrl': null, // No actual image in mock data
+    'imageUrl': 'https://waterfordcouncil.ie/app/uploads/2023/04/street-light.jpg',
     'votes': 15,
   },
   {
     'id': '2',
     'title': 'Pothole on road',
     'description': 'There\'s a large pothole that\'s damaging vehicles. It needs immediate repair.',
-    'latitude': 1.3423,
-    'longitude': 103.8353,
+    'latitude': 3.1189, // Near Faculty of Engineering
+    'longitude': 101.6513,
     'reportedBy': 'roaduser456',
     'reportedAt': '1 day ago',
-    'imageUrl': null,
+    'imageUrl': 'assets/pothole_example.jpeg',
     'votes': 32,
   },
   {
     'id': '3', 
     'title': 'Garbage not collected',
     'description': 'The garbage has not been collected for over a week now. It\'s starting to smell and attract pests.',
-    'latitude': 1.3644,
-    'longitude': 103.9915,
+    'latitude': 3.1156, // Near UM Central Library
+    'longitude': 101.6573,
     'reportedBy': 'resident789',
     'reportedAt': '2 days ago',
     'imageUrl': null,
@@ -49,8 +49,8 @@ final List<Map<String, dynamic>> mockComplaints = [
     'id': '4', 
     'title': 'Fallen tree blocking sidewalk',
     'description': 'A tree has fallen and is completely blocking the sidewalk. Pedestrians have to walk on the street which is dangerous.',
-    'latitude': 1.3522,
-    'longitude': 103.8765,
+    'latitude': 3.1231, // Near Faculty of Science
+    'longitude': 101.6534,
     'reportedBy': 'walker123',
     'reportedAt': '5 hours ago',
     'imageUrl': null,
@@ -60,8 +60,8 @@ final List<Map<String, dynamic>> mockComplaints = [
     'id': '5', 
     'title': 'Graffiti on public building',
     'description': 'Someone has vandalized the wall of the community center with inappropriate graffiti.',
-    'latitude': 1.3101,
-    'longitude': 103.8454,
+    'latitude': 3.1194, // Near UM Sports Center
+    'longitude': 101.6490,
     'reportedBy': 'civic_minded',
     'reportedAt': '1 week ago',
     'imageUrl': null,
@@ -152,6 +152,7 @@ class AppRouter {
             reportedBy: complaintData['reportedBy'] as String? ?? 'Unknown user',
             reportedAt: complaintData['reportedAt'] as String? ?? 'Unknown time',
             initialVotes: complaintData['votes'] as int? ?? 0,
+            imageUrl: complaintData['imageUrl'] as String?,
           );
         },
       ),
