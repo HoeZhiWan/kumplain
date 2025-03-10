@@ -92,7 +92,10 @@ class LocationService {
     }
     
     // Get current location
-    final position = await Geolocator.getCurrentPosition();
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 5), // Add a timeout to prevent hanging
+    );
     final userLocation = LatLng(position.latitude, position.longitude);
     
     // Create user location dot (small blue circle)
@@ -104,6 +107,7 @@ class LocationService {
       strokeColor: Colors.white,
       strokeWidth: 2,
       zIndex: 2, // Above other elements
+      consumeTapEvents: false, // Allow taps to pass through
     );
     
     // Create outer pulse circle
@@ -115,6 +119,7 @@ class LocationService {
       strokeColor: Colors.blue.withOpacity(0.3),
       strokeWidth: 2,
       zIndex: 1,
+      consumeTapEvents: false, // Allow taps to pass through
     );
     
     // Create user marker (hidden but with info window capability)
