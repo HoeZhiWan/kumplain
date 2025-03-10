@@ -108,17 +108,19 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     }
 
     try {
-      final locationData = await _locationService.getUserLocation(context);
+      // Pass current zoom level to getUserLocation
+      final locationData = await _locationService.getUserLocation(
+        context,
+        mapZoom: _currentCameraPosition.zoom
+      );
 
       if (locationData != null && mounted) {
         setState(() {
           _userLocation = locationData.location;
           _markers = _markers.union({locationData.marker});
+          _circles = locationData.circles;
           _isLoadingLocation = false;
         });
-        
-        // Update circles with appropriate scale
-        _updateLocationCircles();
         
         // Move camera to user location if it's the first time
         if (_mapController != null && _userLocation != null) {

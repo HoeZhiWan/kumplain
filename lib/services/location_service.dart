@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:math';
 
 class UserLocationData {
   final LatLng location;
@@ -21,8 +22,18 @@ class UserLocationData {
 
 class LocationService {
   // Fixed sizes for the user location display
-  final double _dotRadius = 4.0;
-  final double _pulseRadius = 25.0;
+  final double _dotRadius = 25.0;
+  final double _pulseRadius = 50.0;
+  
+  // Calculate scale factor based on zoom level
+  double _calculateRadiusForZoom(double baseRadius, double zoom) {
+    // As zoom increases (zooms in), we need to decrease the radius
+    // As zoom decreases (zooms out), we need to increase the radius
+    // Base zoom level of 16 will show the standard size
+    const double baseZoom = 16.0;
+    final double zoomFactor = pow(2.0, baseZoom - zoom) as double;
+    return baseRadius * zoomFactor;
+  }
   
   // Request location permission
   Future<bool> requestLocationPermission(BuildContext context) async {
@@ -106,11 +117,11 @@ class LocationService {
     );
     final userLocation = LatLng(position.latitude, position.longitude);
     
-    // Use fixed sizes
-    final dotRadius = _dotRadius;
-    final pulseRadius = _pulseRadius;
+    // Calculate zoom-adjusted radii
+    final dotRadius = _calculateRadiusForZoom(_dotRadius, mapZoom);
+    final pulseRadius = _calculateRadiusForZoom(_pulseRadius, mapZoom);
     
-    // For initial display with fixed sizing
+    // For initial display with zoom-adjusted sizing
     final userLocationDot = Circle(
       circleId: const CircleId('user_location_dot'),
       center: userLocation,
@@ -149,12 +160,16 @@ class LocationService {
     );
   }
   
-  // Method to update circles with fixed sizes
+  // Method to update circles with zoom-adjusted sizes
   Set<Circle> updateLocationCircles(LatLng userLocation, double mapZoom) {
+    // Calculate zoom-adjusted radii
+    final dotRadius = _calculateRadiusForZoom(_dotRadius, mapZoom);
+    final pulseRadius = _calculateRadiusForZoom(_pulseRadius, mapZoom);
+    
     final userLocationDot = Circle(
       circleId: const CircleId('user_location_dot'),
       center: userLocation,
-      radius: _dotRadius,
+      radius: dotRadius,
       fillColor: Colors.blue,
       strokeColor: Colors.white,
       strokeWidth: 2,
@@ -164,7 +179,7 @@ class LocationService {
     final userLocationPulse = Circle(
       circleId: const CircleId('user_location_pulse'),
       center: userLocation,
-      radius: _pulseRadius,
+      radius: pulseRadius,
       fillColor: Colors.blue.withOpacity(0.15),
       strokeColor: Colors.blue.withOpacity(0.3),
       strokeWidth: 2,

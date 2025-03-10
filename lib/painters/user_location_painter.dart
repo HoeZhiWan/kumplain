@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'dart:math';
 
 class UserLocationPainter extends CustomPainter {
   final GoogleMapController? mapController;
   final LatLng userLocation;
   final double mapZoom;
   
-  // Fixed sizes
-  final double _dotRadius = 8.0;
-  final double _pulseRadius = 50.0;
+  // Fixed base sizes
+  final double _dotBaseRadius = 15.0;
+  final double _pulseBaseRadius = 50.0;
   
   UserLocationPainter(
     this.mapController, 
     this.userLocation, 
     {this.mapZoom = 16.0}
   );
+  
+  // Calculate screen radius that remains constant regardless of zoom
+  double _getScreenRadius(double baseRadius) {
+    // Base zoom is 16.0
+    final double zoomFactor = pow(2.0, 16.0 - mapZoom) as double;
+    return baseRadius * zoomFactor;
+  }
   
   @override
   bool hitTest(Offset position) {
@@ -33,31 +41,35 @@ class UserLocationPainter extends CustomPainter {
       // This assumes the userLocation is at the center of the map camera
       final center = Offset(size.width / 2, size.height / 2);
       
-      // Draw the accuracy circle (pulse effect) with fixed size
+      // Calculate zoom-adjusted radius to maintain consistent screen size
+      final pulseRadius = _getScreenRadius(_pulseBaseRadius);
+      final dotRadius = _getScreenRadius(_dotBaseRadius);
+      
+      // Draw the accuracy circle (pulse effect) with zoom-adjusted size
       final pulsePaint = Paint()
         ..color = Colors.blue.withOpacity(0.15)
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(center, _pulseRadius, pulsePaint);
+      canvas.drawCircle(center, pulseRadius, pulsePaint);
       
       // Draw the stroke for accuracy circle
       final pulseStrokePaint = Paint()
         ..color = Colors.blue.withOpacity(0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
-      canvas.drawCircle(center, _pulseRadius, pulseStrokePaint);
+      canvas.drawCircle(center, pulseRadius, pulseStrokePaint);
       
-      // Draw the user location dot - fixed size
+      // Draw the user location dot - zoom-adjusted size
       final dotPaint = Paint()
         ..color = Colors.blue
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(center, _dotRadius, dotPaint);
+      canvas.drawCircle(center, dotRadius, dotPaint);
       
       // Draw white border around the dot
       final borderPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
-      canvas.drawCircle(center, _dotRadius, borderPaint);
+      canvas.drawCircle(center, dotRadius, borderPaint);
     } catch (e) {
       // Silently handle any errors during painting
       debugPrint('Error painting user location: $e');
@@ -66,6 +78,6 @@ class UserLocationPainter extends CustomPainter {
   
   @override
   bool shouldRepaint(UserLocationPainter oldDelegate) {
-    return oldDelegate.userLocation != userLocation;
+    return oldDelegate.userLocation != userLocation || oldDelegate.mapZoom != mapZoom;
   }
 }
