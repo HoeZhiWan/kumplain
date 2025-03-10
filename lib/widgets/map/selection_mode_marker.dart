@@ -17,8 +17,8 @@ class SelectionModeMarker extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-            // Animated pin in selection mode
-            AnimatedBuilder(
+          // Animated pin in selection mode
+          AnimatedBuilder(
             animation: animation,
             builder: (context, child) {
               return Stack(
@@ -44,7 +44,7 @@ class SelectionModeMarker extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Pin icon
+                  // Pin icon with animation
                   Transform.translate(
                     offset: Offset(0, -2 * animation.value.dy.abs()),
                     child: const Icon(
@@ -56,7 +56,7 @@ class SelectionModeMarker extends StatelessWidget {
                 ],
               );
             },
-            ),
+          ),
           // Offset for the pin's point
           const SizedBox(height: 20),
           

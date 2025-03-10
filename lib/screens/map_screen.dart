@@ -12,7 +12,6 @@ import '../widgets/map/drag_hint_overlay.dart';
 import '../widgets/map/location_loading_indicator.dart';
 import '../widgets/map/map_control_buttons.dart';
 import '../widgets/map/selection_confirm_button.dart';
-import '../painters/user_location_painter.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -35,6 +34,22 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   LatLng? _userLocation;
   bool _showDefaultLocationMarker = false;
   final double _userLocationZoom = 17.0;
+  
+  // Add this method to update location circles when zoom changes
+  void _updateLocationCircles() {
+    if (_userLocation == null) return;
+    
+    setState(() {
+      // Let LocationService handle the scaling calculations
+      _circles = _locationService.updateLocationCircles(
+        _userLocation!,
+        _currentCameraPosition.zoom
+      );
+    });
+    
+    // Debug output
+    debugPrint('Updated circles with zoom: ${_currentCameraPosition.zoom}');
+  }
   
   // Selection mode state
   bool _isSelectionMode = false;
@@ -95,14 +110,15 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     try {
       final locationData = await _locationService.getUserLocation(context);
 
-      
       if (locationData != null && mounted) {
         setState(() {
           _userLocation = locationData.location;
-          _circles = _circles.union(locationData.circles);
           _markers = _markers.union({locationData.marker});
           _isLoadingLocation = false;
         });
+        
+        // Update circles with appropriate scale
+        _updateLocationCircles();
         
         // Move camera to user location if it's the first time
         if (_mapController != null && _userLocation != null) {
@@ -327,7 +343,18 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         _selectedLocation = position.target;
         _showDragHint = false;
       }
+      if (_userLocation != null) {
+        _circles = _locationService.updateLocationCircles(
+          _userLocation!,
+          _currentCameraPosition.zoom
+        );
+      }
     });
+    
+    // Update user location circles when zoom changes
+    if (_userLocation != null && !_isSelectionMode) {
+      _updateLocationCircles();
+    }
   }
   
   void _onCameraIdle() {
@@ -371,7 +398,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
               }
             },
             markers: _isSelectionMode ? {} : _markers,
-            circles: _isSelectionMode ? {} : _circles, // Hide circles in selection mode too
+            circles: _isSelectionMode ? {} : _circles,
             myLocationEnabled: _showDefaultLocationMarker, 
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
@@ -392,17 +419,6 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             },
           ),
           
-          // Custom user location indicator - ensure it doesn't block gestures
-          if (_userLocation != null && !_showDefaultLocationMarker && !_isSelectionMode) 
-            IgnorePointer(
-              ignoring: true, // This ensures touches pass through to the map
-              child: Positioned.fill(
-                child: CustomPaint(
-                  painter: UserLocationPainter(_mapController, _userLocation!),
-                ),
-              ),
-            ),
-            
           // Selection mode marker
           if (_isSelectionMode)
             SelectionModeMarker(

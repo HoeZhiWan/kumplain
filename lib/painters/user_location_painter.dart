@@ -4,13 +4,21 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class UserLocationPainter extends CustomPainter {
   final GoogleMapController? mapController;
   final LatLng userLocation;
+  final double mapZoom;
   
-  UserLocationPainter(this.mapController, this.userLocation);
+  // Fixed sizes
+  final double _dotRadius = 8.0;
+  final double _pulseRadius = 50.0;
+  
+  UserLocationPainter(
+    this.mapController, 
+    this.userLocation, 
+    {this.mapZoom = 16.0}
+  );
   
   @override
   bool hitTest(Offset position) {
     // Return false to ensure touch events pass through to the map
-    // This is critical - returning true here would capture touch events
     return false;
   }
   
@@ -20,37 +28,36 @@ class UserLocationPainter extends CustomPainter {
     if (mapController == null) return;
     
     try {
-      // Calculate the center of the screen as our drawing point
-      // Note: This is a simplified approach. For actual implementation,
-      // you would need to project lat/lng to screen coordinates
+      // We need to calculate the screen position of our location coordinates
+      // For this example, we're using the center of the screen to match the map camera position
+      // This assumes the userLocation is at the center of the map camera
       final center = Offset(size.width / 2, size.height / 2);
       
-      // Draw the accuracy circle (pulse effect)
-      final pulseRadius = 50.0;
+      // Draw the accuracy circle (pulse effect) with fixed size
       final pulsePaint = Paint()
         ..color = Colors.blue.withOpacity(0.15)
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(center, pulseRadius, pulsePaint);
+      canvas.drawCircle(center, _pulseRadius, pulsePaint);
       
       // Draw the stroke for accuracy circle
       final pulseStrokePaint = Paint()
         ..color = Colors.blue.withOpacity(0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
-      canvas.drawCircle(center, pulseRadius, pulseStrokePaint);
+      canvas.drawCircle(center, _pulseRadius, pulseStrokePaint);
       
-      // Draw the user location dot
+      // Draw the user location dot - fixed size
       final dotPaint = Paint()
         ..color = Colors.blue
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(center, 8, dotPaint);
+      canvas.drawCircle(center, _dotRadius, dotPaint);
       
       // Draw white border around the dot
       final borderPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
-      canvas.drawCircle(center, 8, borderPaint);
+      canvas.drawCircle(center, _dotRadius, borderPaint);
     } catch (e) {
       // Silently handle any errors during painting
       debugPrint('Error painting user location: $e');

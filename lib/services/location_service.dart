@@ -7,15 +7,23 @@ class UserLocationData {
   final LatLng location;
   final Set<Circle> circles;
   final Marker marker;
+  final double dotRadius;
+  final double pulseRadius;
   
   UserLocationData({
     required this.location,
     required this.circles,
     required this.marker,
+    required this.dotRadius,
+    required this.pulseRadius,
   });
 }
 
 class LocationService {
+  // Fixed sizes for the user location display
+  final double _dotRadius = 4.0;
+  final double _pulseRadius = 25.0;
+  
   // Request location permission
   Future<bool> requestLocationPermission(BuildContext context) async {
     final status = await Permission.location.request();
@@ -51,8 +59,8 @@ class LocationService {
     }
   }
 
-  // Get current location and return location data
-  Future<UserLocationData?> getUserLocation(BuildContext context) async {
+  // Get current location and return location data with fixed sizes
+  Future<UserLocationData?> getUserLocation(BuildContext context, {double mapZoom = 16.0}) async {
     // Check if location service is enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -98,28 +106,29 @@ class LocationService {
     );
     final userLocation = LatLng(position.latitude, position.longitude);
     
-    // Create user location dot (small blue circle)
+    // Use fixed sizes
+    final dotRadius = _dotRadius;
+    final pulseRadius = _pulseRadius;
+    
+    // For initial display with fixed sizing
     final userLocationDot = Circle(
       circleId: const CircleId('user_location_dot'),
       center: userLocation,
-      radius: 8, // Small dot size
+      radius: dotRadius,
       fillColor: Colors.blue,
       strokeColor: Colors.white,
       strokeWidth: 2,
-      zIndex: 2, // Above other elements
-      consumeTapEvents: false, // Allow taps to pass through
+      zIndex: 2,
     );
     
-    // Create outer pulse circle
     final userLocationPulse = Circle(
       circleId: const CircleId('user_location_pulse'),
       center: userLocation,
-      radius: 50, // Larger pulse radius
+      radius: pulseRadius, 
       fillColor: Colors.blue.withOpacity(0.15),
       strokeColor: Colors.blue.withOpacity(0.3),
       strokeWidth: 2,
       zIndex: 1,
-      consumeTapEvents: false, // Allow taps to pass through
     );
     
     // Create user marker (hidden but with info window capability)
@@ -135,6 +144,33 @@ class LocationService {
       location: userLocation,
       circles: {userLocationDot, userLocationPulse},
       marker: userMarker,
+      dotRadius: dotRadius,
+      pulseRadius: pulseRadius,
     );
+  }
+  
+  // Method to update circles with fixed sizes
+  Set<Circle> updateLocationCircles(LatLng userLocation, double mapZoom) {
+    final userLocationDot = Circle(
+      circleId: const CircleId('user_location_dot'),
+      center: userLocation,
+      radius: _dotRadius,
+      fillColor: Colors.blue,
+      strokeColor: Colors.white,
+      strokeWidth: 2,
+      zIndex: 2,
+    );
+    
+    final userLocationPulse = Circle(
+      circleId: const CircleId('user_location_pulse'),
+      center: userLocation,
+      radius: _pulseRadius,
+      fillColor: Colors.blue.withOpacity(0.15),
+      strokeColor: Colors.blue.withOpacity(0.3),
+      strokeWidth: 2,
+      zIndex: 1,
+    );
+    
+    return {userLocationDot, userLocationPulse};
   }
 }
