@@ -4,14 +4,17 @@ import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/foundation.dart';
+
 import '../router.dart';
 import '../services/map_service.dart';
 import '../services/location_service.dart';
+import '../controllers/map_controller_helper.dart';
 import '../widgets/map/selection_mode_marker.dart';
-import '../widgets/map/drag_hint_overlay.dart';
 import '../widgets/map/location_loading_indicator.dart';
 import '../widgets/map/map_control_buttons.dart';
 import '../widgets/map/selection_confirm_button.dart';
+import '../widgets/map/drag_hint_overlay.dart';
+import '../widgets/map/map_ui_builder.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -22,9 +25,9 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin {
   // Controllers
-  GoogleMapController? _mapController;
   late AnimationController _dragHintController;
   late Animation<Offset> _dragHintAnimation;
+  late MapControllerHelper _mapControllerHelper;
   
   // State variables
   Set<Marker> _markers = {};
@@ -33,23 +36,6 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   bool _isLoadingLocation = false;
   LatLng? _userLocation;
   bool _showDefaultLocationMarker = false;
-  final double _userLocationZoom = 17.0;
-  
-  // Add this method to update location circles when zoom changes
-  void _updateLocationCircles() {
-    if (_userLocation == null) return;
-    
-    setState(() {
-      // Let LocationService handle the scaling calculations
-      _circles = _locationService.updateLocationCircles(
-        _userLocation!,
-        _currentCameraPosition.zoom
-      );
-    });
-    
-    // Debug output
-    debugPrint('Updated circles with zoom: ${_currentCameraPosition.zoom}');
-  }
   
   // Selection mode state
   bool _isSelectionMode = false;
@@ -57,21 +43,35 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   bool _showDragHint = false;
   bool _isCameraMoving = false;
   
-  // Camera movement tracking
-  Completer<void>? _mapAnimationCompleter;
-  
   final LocationService _locationService = LocationService();
   
   @override
   void initState() {
     super.initState();
+    // Initialize map controller helper
+    _mapControllerHelper = MapControllerHelper(
+      onCameraMovingChanged: (isMoving) {
+        if (mounted) {
+          setState(() {
+            _isCameraMoving = isMoving;
+          });
+        }
+      },
+    );
+    
     _loadMarkers();
+    _initializeLocationServices();
+    _initializeAnimations();
+  }
+  
+  void _initializeLocationServices() {
     // Request location permission
     _locationService.requestLocationPermission(context).then((_) {
       if (mounted) _getCurrentLocation();
     });
-    
-    // Initialize animation controller
+  }
+  
+  void _initializeAnimations() {
     _dragHintController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -122,10 +122,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
           _isLoadingLocation = false;
         });
         
-        // Move camera to user location if it's the first time
-        if (_mapController != null && _userLocation != null) {
-          _navigateToLocation(_userLocation!, _userLocationZoom);
-        }
+        _moveToUserLocationWithDelay();
       } else if (mounted) {
         setState(() {
           _isLoadingLocation = false;
@@ -144,157 +141,58 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     }
   }
 
-  // Move camera to specific location
-  Future<void> _moveToLocation(LatLng location, double zoom) async {
-    if (_mapController == null) return;
-    
-    _cancelMapAnimation();
-    
-    final cameraUpdate = CameraUpdate.newLatLngZoom(location, zoom);
-    
-    try {
-      // Create a new completer to track this animation
-      _mapAnimationCompleter = Completer<void>();
-      
-      // Set a timeout to ensure the animation completes eventually
-      Timer(const Duration(seconds: 3), () {
-        if (_mapAnimationCompleter != null && !_mapAnimationCompleter!.isCompleted) {
-          debugPrint('Map animation timed out - resetting state');
-          _mapAnimationCompleter!.complete();
-          _mapAnimationCompleter = null;
-          
-          if (_isCameraMoving && mounted) {
-            setState(() {
-              _isCameraMoving = false;
-            });
-          }
+  void _moveToUserLocationWithDelay() {
+    // Move camera to user location if it's the first time
+    if (_mapControllerHelper.mapController != null && _userLocation != null) {
+      // Use a slight delay to ensure the map is fully initialized
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _goToUserLocation();
         }
       });
-      
-      await _mapController!.animateCamera(cameraUpdate);
-      
-      // Complete the animation
-      if (_mapAnimationCompleter?.isCompleted == false) {
-        _mapAnimationCompleter?.complete();
-        _mapAnimationCompleter = null; // Reset the completer
-      }
-    } catch (e) {
-      debugPrint('Error moving camera: $e');
-      if (_mapAnimationCompleter?.isCompleted == false) {
-        _mapAnimationCompleter?.completeError(e);
-        _mapAnimationCompleter = null; // Reset the completer on error too
-      }
-    } finally {
-      // Ensure we reset the camera movement state
-      if (_isCameraMoving && mounted) {
-        setState(() {
-          _isCameraMoving = false;
-        });
-      }
     }
+  }
+
+  // Update circles based on zoom
+  void _updateLocationCircles() {
+    if (_userLocation == null) return;
+    
+    setState(() {
+      // Let LocationService handle the scaling calculations
+      _circles = _locationService.updateLocationCircles(
+        _userLocation!,
+        _currentCameraPosition.zoom
+      );
+    });
+    
+    // Debug output
+    debugPrint('Updated circles with zoom: ${_currentCameraPosition.zoom}');
   }
   
-  void _cancelMapAnimation() {
-    // Cancel any ongoing animation
-    if (_mapAnimationCompleter != null && !_mapAnimationCompleter!.isCompleted) {
-      _mapAnimationCompleter?.complete();
-      _mapAnimationCompleter = null;
-    }
-    
-    // Make sure to reset camera movement flag
-    if (_isCameraMoving && mounted) {
-      setState(() {
-        _isCameraMoving = false;
-      });
-    }
-  }
-
-  // Navigation helpers
+  // Navigation methods
   Future<void> _navigateToLocation(LatLng location, double zoom) async {
-    if (_mapController == null) {
-      return Future.value();
-    }
-    try {
-      await _moveToLocation(location, zoom);
-    } finally {
-      // Ensure animation state is reset even if there's an error
-      _cancelMapAnimation();
-    }
+    return _mapControllerHelper.moveToLocation(location, zoom);
   }
-
-  // Let's modify this to use moveCamera instead of animateCamera for more reliable behavior
+  
   Future<void> _goToUserLocation() async {
     if (_userLocation == null) {
       _getCurrentLocation();
       return;
     }
     
-    if (_mapController == null) return;
-    
-    try {
-      _cancelMapAnimation();
-      
-      // Use moveCamera for immediate positioning without animation
-      await _mapController!.moveCamera(
-        CameraUpdate.newLatLngZoom(_userLocation!, _userLocationZoom)
-      );
-    } catch (e) {
-      debugPrint('Error going to user location: $e');
-    } finally {
-      // Make sure camera state is reset
-      if (_isCameraMoving && mounted) {
-        setState(() {
-          _isCameraMoving = false;
-        });
-      }
-    }
+    return _mapControllerHelper.moveToLocationImmediately(_userLocation!, MapService.userLocationZoom);
   }
   
-  // Make the UM navigation more reliable too
   Future<void> _goToUM() async {
-    // UM coordinates (Universiti Malaya)
-    final umLocation = const LatLng(3.1209, 101.6538);
-    
-    if (_mapController == null) return;
-    
-    try {
-      _cancelMapAnimation();
-      
-      // Use moveCamera for immediate positioning without animation
-      await _mapController!.moveCamera(
-        CameraUpdate.newLatLngZoom(umLocation, 15.0)
-      );
-    } catch (e) {
-      debugPrint('Error going to UM: $e');
-    } finally {
-      // Make sure camera state is reset
-      if (_isCameraMoving && mounted) {
-        setState(() {
-          _isCameraMoving = false;
-        });
-      }
-    }
+    return _mapControllerHelper.moveToLocationImmediately(MapService.defaultCenter, MapService.defaultZoom);
   }
   
-  // Zoom controls
-  void _zoomIn() async {
-    if (_mapController == null) return;
-    _cancelMapAnimation();
-    try {
-      await _mapController!.moveCamera(CameraUpdate.zoomIn());
-    } catch (e) {
-      debugPrint('Error during zoom in: $e');
-    }
+  void _zoomIn() {
+    _mapControllerHelper.zoomIn();
   }
   
-  void _zoomOut() async {
-    if (_mapController == null) return;
-    _cancelMapAnimation();
-    try {
-      await _mapController!.moveCamera(CameraUpdate.zoomOut());
-    } catch (e) {
-      debugPrint('Error during zoom out: $e');
-    }
+  void _zoomOut() {
+    _mapControllerHelper.zoomOut();
   }
   
   // Selection mode methods
@@ -335,34 +233,113 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     });
   }
   
+  // Map configuration
+  void _configureMap(GoogleMapController controller) {
+    _mapControllerHelper.setController(controller);
+    
+    // Move to user location if already available
+    if (_userLocation != null) {
+      _moveToUserLocationWithDelay();
+    }
+  }
+  
   // Camera movement handler
   void _handleCameraMove(CameraPosition position) {
     setState(() {
       _currentCameraPosition = position;
-      _isCameraMoving = true;
-    
+      
       if (_isSelectionMode) {
         _selectedLocation = position.target;
         _showDragHint = false;
       }
-      if (_userLocation != null) {
-        _circles = _locationService.updateLocationCircles(
-          _userLocation!,
-          _currentCameraPosition.zoom
-        );
-      }
     });
     
+    _mapControllerHelper.handleCameraMove(position);
+    
     // Update user location circles when zoom changes
-    if (_userLocation != null && !_isSelectionMode) {
+    if (_userLocation != null) {
       _updateLocationCircles();
     }
   }
   
-  void _onCameraIdle() {
-    setState(() {
-      _isCameraMoving = false;
-    });
+  // Build map UI components
+  Widget _buildMap() {
+    return GoogleMap(
+      initialCameraPosition: _currentCameraPosition,
+      onMapCreated: _configureMap,
+      markers: _isSelectionMode ? {} : _markers,
+      circles: _circles,
+      myLocationEnabled: _showDefaultLocationMarker,
+      zoomControlsEnabled: MapService.defaultMapOptions.zoomControlsEnabled,
+      mapToolbarEnabled: MapService.defaultMapOptions.mapToolbarEnabled,
+      compassEnabled: MapService.defaultMapOptions.compassEnabled,
+      onCameraMove: _handleCameraMove,
+      onCameraIdle: _mapControllerHelper.handleCameraIdle,
+      zoomGesturesEnabled: MapService.defaultMapOptions.zoomGesturesEnabled,
+      rotateGesturesEnabled: MapService.defaultMapOptions.rotateGesturesEnabled,
+      tiltGesturesEnabled: MapService.defaultMapOptions.tiltGesturesEnabled,
+      scrollGesturesEnabled: MapService.defaultMapOptions.scrollGesturesEnabled,
+      gestureRecognizers: MapService.getGestureRecognizers(),
+    );
+  }
+  
+  // Build UI stack elements
+  List<Widget> _buildUIOverlays() {
+    final List<Widget> overlays = [];
+    
+    // Add map as base layer
+    overlays.add(_buildMap());
+    
+    // Selection mode marker
+    if (_isSelectionMode) {
+      overlays.add(
+        MapUIBuilder.buildSelectionModeMarker(
+          animation: _dragHintAnimation,
+          selectedLocation: _selectedLocation,
+        )
+      );
+    }
+    
+    // Drag hint overlay
+    if (_isSelectionMode && _showDragHint) {
+      overlays.add(
+        MapUIBuilder.buildDragHintOverlay(
+          onGotIt: () {
+            setState(() {
+              _showDragHint = false;
+            });
+          },
+        )
+      );
+    }
+    
+    // Loading indicator
+    if (_isLoadingLocation) {
+      overlays.add(MapUIBuilder.buildLoadingIndicator());
+    }
+    
+    // Map control buttons
+    overlays.add(
+      MapUIBuilder.buildMapControls(
+        userLocation: _userLocation,
+        onLocationPressed: _goToUserLocation,
+        onUMPressed: _goToUM,
+        onZoomInPressed: _zoomIn,
+        onZoomOutPressed: _zoomOut,
+      )
+    );
+    
+    // Selection confirmation button
+    if (_isSelectionMode) {
+      overlays.add(
+        MapUIBuilder.buildSelectionConfirmButton(
+          showHint: !_showDragHint,
+          onUseLocation: _useSelectedLocation,
+        )
+      );
+    }
+    
+    return overlays;
   }
 
   @override
@@ -385,95 +362,21 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         ],
       ),
       body: Stack(
-        children: [
-          // Map component
-          GoogleMap(
-            initialCameraPosition: _currentCameraPosition,
-            onMapCreated: (GoogleMapController controller) {
-              _mapController = controller;
-              // Move to user location if already available
-              if (_userLocation != null) {
-                // Use a slight delay to ensure the map is fully initialized
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  _goToUserLocation();
-                });
-              }
-            },
-            markers: _isSelectionMode ? {} : _markers,
-            circles: _circles,
-            myLocationEnabled: _showDefaultLocationMarker, 
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            compassEnabled: true,
-            onCameraMove: _handleCameraMove,
-            onCameraIdle: _onCameraIdle,
-            // Make sure gestures are enabled
-            zoomGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            // Use more reliable gesture recognizers
-            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-              Factory<OneSequenceGestureRecognizer>(
-                () => EagerGestureRecognizer(),
-              ),
-            },
-          ),
-          
-          // Selection mode marker
-          if (_isSelectionMode)
-            SelectionModeMarker(
-              animation: _dragHintAnimation,
-              selectedLocation: _selectedLocation,
-            ),
-          
-          // Drag hint overlay
-          if (_isSelectionMode && _showDragHint)
-            DragHintOverlay(
-              onGotIt: () {
-                setState(() {
-                  _showDragHint = false;
-                });
-              },
-            ),
-          
-          // Loading indicator
-          if (_isLoadingLocation)
-            const LocationLoadingIndicator(),
-          
-          // Map control buttons
-          MapControlButtons(
-            userLocation: _userLocation,
-            onLocationPressed: _goToUserLocation,
-            onUMPressed: _goToUM,
-            onZoomInPressed: _zoomIn,
-            onZoomOutPressed: _zoomOut,
-          ),
-          
-          // Selection confirmation button
-          if (_isSelectionMode)
-            SelectionConfirmButton(
-              showHint: !_showDragHint,
-              onUseLocation: _useSelectedLocation,
-            ),
-        ],
+        children: _buildUIOverlays(),
       ),
-      floatingActionButton: _isSelectionMode
-          ? null
-          : FloatingActionButton(
-              onPressed: _isCameraMoving ? null : _enterSelectionMode,
-              child: const Icon(Icons.add_a_photo),
-            ),
+      floatingActionButton: MapUIBuilder.buildFloatingActionButton(
+        isSelectionMode: _isSelectionMode,
+        isCameraMoving: _isCameraMoving,
+        onPressed: _enterSelectionMode,
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
   
   @override
   void dispose() {
-    _cancelMapAnimation();
+    _mapControllerHelper.dispose();
     _dragHintController.dispose();
-    _mapController?.dispose();
     super.dispose();
   }
 }
