@@ -400,7 +400,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
               }
             },
             markers: _isSelectionMode ? {} : _markers,
-            circles: _isSelectionMode ? {} : _circles,
+            circles: _circles,
             myLocationEnabled: _showDefaultLocationMarker, 
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,

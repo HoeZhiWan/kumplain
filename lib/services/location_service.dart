@@ -22,10 +22,10 @@ class UserLocationData {
 
 class LocationService {
   // Fixed sizes for the user location display
-  final double _dotRadius = 25.0;
-  final double _pulseRadius = 50.0;
+  final double _dotRadius = 20.0;
+  final double _pulseRadius = 50.0; // This will remain constant
   
-  // Calculate scale factor based on zoom level
+  // Calculate scale factor based on zoom level for the dot only
   double _calculateRadiusForZoom(double baseRadius, double zoom) {
     // As zoom increases (zooms in), we need to decrease the radius
     // As zoom decreases (zooms out), we need to increase the radius
@@ -70,7 +70,7 @@ class LocationService {
     }
   }
 
-  // Get current location and return location data with fixed sizes
+  // Get current location and return location data with zoom-adjusted dot and constant pulse
   Future<UserLocationData?> getUserLocation(BuildContext context, {double mapZoom = 16.0}) async {
     // Check if location service is enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -117,11 +117,11 @@ class LocationService {
     );
     final userLocation = LatLng(position.latitude, position.longitude);
     
-    // Calculate zoom-adjusted radii
+    // Calculate zoom-adjusted radius for dot only, pulse remains constant
     final dotRadius = _calculateRadiusForZoom(_dotRadius, mapZoom);
-    final pulseRadius = _calculateRadiusForZoom(_pulseRadius, mapZoom);
+    final pulseRadius = _pulseRadius; // Constant pulse radius
     
-    // For initial display with zoom-adjusted sizing
+    // For initial display with zoom-adjusted dot and fixed pulse
     final userLocationDot = Circle(
       circleId: const CircleId('user_location_dot'),
       center: userLocation,
@@ -135,7 +135,7 @@ class LocationService {
     final userLocationPulse = Circle(
       circleId: const CircleId('user_location_pulse'),
       center: userLocation,
-      radius: pulseRadius, 
+      radius: pulseRadius, // Fixed radius for the pulse
       fillColor: Colors.blue.withOpacity(0.15),
       strokeColor: Colors.blue.withOpacity(0.3),
       strokeWidth: 2,
@@ -160,11 +160,11 @@ class LocationService {
     );
   }
   
-  // Method to update circles with zoom-adjusted sizes
+  // Method to update circles with zoom-adjusted dot and constant pulse
   Set<Circle> updateLocationCircles(LatLng userLocation, double mapZoom) {
-    // Calculate zoom-adjusted radii
+    // Calculate zoom-adjusted radius for dot only
     final dotRadius = _calculateRadiusForZoom(_dotRadius, mapZoom);
-    final pulseRadius = _calculateRadiusForZoom(_pulseRadius, mapZoom);
+    final pulseRadius = _pulseRadius; // Constant pulse radius
     
     final userLocationDot = Circle(
       circleId: const CircleId('user_location_dot'),
@@ -179,7 +179,7 @@ class LocationService {
     final userLocationPulse = Circle(
       circleId: const CircleId('user_location_pulse'),
       center: userLocation,
-      radius: pulseRadius,
+      radius: pulseRadius, // Fixed radius for the pulse
       fillColor: Colors.blue.withOpacity(0.15),
       strokeColor: Colors.blue.withOpacity(0.3),
       strokeWidth: 2,
