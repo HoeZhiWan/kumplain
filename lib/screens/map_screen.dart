@@ -195,35 +195,41 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   }
 
   // Navigation helpers
+  void _navigateToLocation(LatLng location, double zoom) {
+    _moveToLocation(location, zoom)
+      .then((_) {
+        // Force reset all camera movement states after animation
+        print("Success");
+        if (mounted) {
+          setState(() {
+            print('Camera moved to location');
+            _isCameraMoving = false;
+          });
+          
+          // Add a small delay and then trigger an empty camera update
+          // This helps "unstick" the map in some cases
+          Future.delayed(const Duration(milliseconds: 100), () {
+            _mapController?.moveCamera(CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: location,
+                zoom: _currentCameraPosition.zoom,
+              )
+            ));
+          });
+        }
+      });
+  }
+
   void _goToUserLocation() {
     if (_userLocation != null) {
-      _moveToLocation(_userLocation!, _userLocationZoom)
-        .then((_) {
-          // Force reset all camera movement states after animation
-          if (mounted) {
-            setState(() {
-              _isCameraMoving = false;
-            });
-            
-            // Add a small delay and then trigger an empty camera update
-            // This helps "unstick" the map in some cases
-            Future.delayed(const Duration(milliseconds: 100), () {
-              _mapController?.moveCamera(CameraUpdate.newCameraPosition(
-                CameraPosition(
-                  target: _userLocation!,
-                  zoom: _currentCameraPosition.zoom,
-                )
-              ));
-            });
-          }
-        });
+      _navigateToLocation(_userLocation!, _userLocationZoom);
     } else {
       _getCurrentLocation();
     }
   }
   
   void _goToUM() {
-    _moveToLocation(MapService.defaultCenter, 16.0);
+    _navigateToLocation(MapService.defaultCenter, 16.0);
   }
   
   // Zoom controls
@@ -349,8 +355,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             liteModeEnabled: false,
             minMaxZoomPreference: const MinMaxZoomPreference(1, 20),
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-              Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-              Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
+              Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
             //   Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
             //   Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
             //   Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),

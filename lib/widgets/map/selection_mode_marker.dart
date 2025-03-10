@@ -17,15 +17,46 @@ class SelectionModeMarker extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Animated pin in selection mode
-          SlideTransition(
-            position: animation,
-            child: const Icon(
-              Icons.location_on,
-              color: Colors.red,
-              size: 42,
+            // Animated pin in selection mode
+            AnimatedBuilder(
+            animation: animation,
+            builder: (context, child) {
+              return Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.topCenter,
+                children: [
+                  // Shadow at the selected location
+                  Positioned(
+                    bottom: -2,
+                    child: Container(
+                      width: 14,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Pin icon
+                  Transform.translate(
+                    offset: Offset(0, -2 * animation.value.dy.abs()),
+                    child: const Icon(
+                      Icons.location_on,
+                      color: Colors.red,
+                      size: 42,
+                    ),
+                  ),
+                ],
+              );
+            },
             ),
-          ),
           // Offset for the pin's point
           const SizedBox(height: 20),
           
