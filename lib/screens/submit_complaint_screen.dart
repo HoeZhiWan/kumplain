@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/complaint_service.dart';
 
 class SubmitComplaintScreen extends StatefulWidget {
   final double? latitude;
@@ -20,6 +21,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   final _descriptionController = TextEditingController();
   bool _isImageSelected = false;
   bool _isSubmitting = false;
+  final ComplaintService _complaintService = ComplaintService();
 
   @override
   void dispose() {
@@ -36,48 +38,76 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
       return;
     }
 
+    // For now, let's make the image optional
     if (!_isImageSelected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image')),
-      );
-      return;
+      // Show a confirmation dialog instead of an error
+      bool continueWithoutImage = await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Image Selected'),
+          content: const Text('Do you want to continue without an image?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ) ?? false;
+      
+      if (!continueWithoutImage) {
+        return;
+      }
     }
 
     setState(() {
       _isSubmitting = true;
     });
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() {
-        _isSubmitting = false;
-      });
-      
-      // Create mock complaint data
-      final newComplaint = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'title': _titleController.text,
-        'description': _descriptionController.text,
-        'latitude': widget.latitude,
-        'longitude': widget.longitude,
-        'reportedBy': 'current_user', // Add user info
-        'reportedAt': 'Just now', // Add timestamp
-        'votes': 0, // Initialize votes
-        'imageUrl': _isImageSelected ? 'https://via.placeholder.com/800x600.png?text=Sample+Complaint+Image' : null,
-      };
-      
-      // Return to map screen and show the new complaint
-      context.go('/complaint/${newComplaint['id']}', extra: newComplaint);
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Complaint submitted successfully!'),
-          backgroundColor: Colors.green,
-        ),
+    try {
+      // Submit to Firestore using the service
+      final complaintId = await _complaintService.submitComplaint(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        latitude: widget.latitude ?? 0.0,
+        longitude: widget.longitude ?? 0.0,
+        // For now, use a placeholder if the user selected an image
+        imageUrl: _isImageSelected ? 'https://via.placeholder.com/800x600.png?text=Sample+Complaint+Image' : null,
       );
+      
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        
+        // Navigate to the complaint details screen
+        context.go('/complaint/$complaintId');
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Complaint submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting complaint: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

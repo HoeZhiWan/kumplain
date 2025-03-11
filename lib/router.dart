@@ -9,6 +9,8 @@ import 'screens/submit_complaint_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/complaint_details_screen.dart';
+import 'services/complaint_service.dart';
+import 'models/complaint_model.dart';
 
 // Updated mock data for complaints with coordinates around Universiti Malaya
 final List<Map<String, dynamic>> mockComplaints = [
@@ -71,6 +73,7 @@ final List<Map<String, dynamic>> mockComplaints = [
 
 class AppRouter {
   final AuthService authService;
+  final ComplaintService complaintService = ComplaintService();
   
   AppRouter(this.authService);
   
@@ -122,38 +125,55 @@ class AppRouter {
           // Get complaint ID from parameters
           final complaintId = state.pathParameters['id'] ?? '';
           
-          // First check if we have complaint data passed as extra
+          // Check if we have complaint data passed as extra
           Map<String, dynamic>? complaintData = state.extra as Map<String, dynamic>?;
           
-          // If not passed as extra, look up in the mock data
-          if (complaintData == null) {
-            complaintData = mockComplaints.firstWhere(
-              (complaint) => complaint['id'] == complaintId,
-              orElse: () => {
-                'id': complaintId,
-                'title': 'Unknown Complaint',
-                'description': 'Details not available',
-                'latitude': 0.0,
-                'longitude': 0.0,
-                'reportedBy': 'unknown',
-                'reportedAt': 'unknown',
-                'votes': 0,
+          if (complaintData != null) {
+            // If we have data passed, use it directly
+            return ComplaintDetailsScreen(
+              complaintId: complaintId,
+              title: complaintData['title'] as String,
+              description: complaintData['description'] as String? ?? 'No description available',
+              latitude: complaintData['latitude'] as double? ?? 0.0,
+              longitude: complaintData['longitude'] as double? ?? 0.0,
+              reportedBy: complaintData['reportedBy'] as String? ?? 'Unknown user',
+              reportedAt: complaintData['reportedAt'] as String? ?? 'Unknown time',
+              initialVotes: complaintData['votes'] as int? ?? 0,
+              imageUrl: complaintData['imageUrl'] as String?,
+            );
+          } else {
+            // If no data is passed, return a loading screen that fetches the complaint
+            return FutureBuilder<ComplaintModel?>(
+              future: complaintService.getComplaint(complaintId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                
+                final complaint = snapshot.data;
+                if (complaint == null) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: const Center(child: Text('Complaint not found')),
+                  );
+                }
+                
+                return ComplaintDetailsScreen(
+                  complaintId: complaint.id ?? '',
+                  title: complaint.title,
+                  description: complaint.description,
+                  latitude: complaint.latitude,
+                  longitude: complaint.longitude,
+                  reportedBy: complaint.userName,
+                  reportedAt: complaint.timeAgo,
+                  initialVotes: complaint.votes,
+                  imageUrl: complaint.imageUrl,
+                );
               },
             );
           }
-          
-          // Return the complaint details screen with the data
-          return ComplaintDetailsScreen(
-            complaintId: complaintId,
-            title: complaintData['title'] as String,
-            description: complaintData['description'] as String? ?? 'No description available',
-            latitude: complaintData['latitude'] as double? ?? 0.0,
-            longitude: complaintData['longitude'] as double? ?? 0.0,
-            reportedBy: complaintData['reportedBy'] as String? ?? 'Unknown user',
-            reportedAt: complaintData['reportedAt'] as String? ?? 'Unknown time',
-            initialVotes: complaintData['votes'] as int? ?? 0,
-            imageUrl: complaintData['imageUrl'] as String?,
-          );
         },
       ),
     ],

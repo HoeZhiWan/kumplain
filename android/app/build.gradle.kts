@@ -52,6 +52,14 @@ android {
     }
 }
 
+dependencies {
+    // Add the Google services dependency
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
+    
+    // Add Firebase Analytics if needed
+    implementation("com.google.firebase:firebase-analytics")
+}
+
 flutter {
     source = "../.."
 }

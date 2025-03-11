@@ -1,18 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
+import '../services/complaint_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final AuthService authService = AuthService();
-    final user = authService.currentUser;
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
 
-    // Mock user data
-    final int submittedComplaints = 5;
-    final int resolvedComplaints = 2;
+class _ProfileScreenState extends State<ProfileScreen> {
+  final AuthService _authService = AuthService();
+  final ComplaintService _complaintService = ComplaintService();
+  
+  bool _isLoading = true;
+  int _submittedComplaints = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserStats();
+  }
+
+  Future<void> _loadUserStats() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final stats = await _complaintService.getUserStats();
+      if (mounted) {
+        setState(() {
+          _submittedComplaints = stats['submitted'] ?? 0;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading user stats: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = _authService.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -66,29 +105,9 @@ class ProfileScreen extends StatelessWidget {
             // Stats section
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Submitted',
-                      submittedComplaints.toString(),
-                      Icons.send,
-                      Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Resolved',
-                      resolvedComplaints.toString(),
-                      Icons.check_circle,
-                      Colors.green,
-                    ),
-                  ),
-                ],
-              ),
+              child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildStats(context),
             ),
 
             // Account settings
@@ -129,12 +148,38 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               onTap: () async {
-                await authService.signOut();
+                await _authService.signOut();
               },
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStats(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Submitted',
+            _submittedComplaints.toString(),
+            Icons.send,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Active',
+            _submittedComplaints.toString(), // For now, all complaints are active
+            Icons.check_circle,
+            Colors.green,
+          ),
+        ),
+      ],
     );
   }
 
