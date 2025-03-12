@@ -1,5 +1,9 @@
+import  'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:kumplain/services/firebase_storage_service.dart';
 import '../services/complaint_service.dart';
 
 class SubmitComplaintScreen extends StatefulWidget {
@@ -19,7 +23,7 @@ class SubmitComplaintScreen extends StatefulWidget {
 class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  bool _isImageSelected = false;
+  XFile? _selectedImage;
   bool _isSubmitting = false;
   final ComplaintService _complaintService = ComplaintService();
 
@@ -39,7 +43,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     }
 
     // For now, let's make the image optional
-    if (!_isImageSelected) {
+    if (_selectedImage == null) {
       // Show a confirmation dialog instead of an error
       bool continueWithoutImage = await showDialog(
         context: context,
@@ -69,14 +73,19 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     });
 
     try {
+      //Upload image to Firebase Storage
+      final imageUrl = await FirebaseStorageService().uploadImage(
+        _selectedImage, 
+        '/complaints/images',
+      );
+
       // Submit to Firestore using the service
       final complaintId = await _complaintService.submitComplaint(
         title: _titleController.text,
         description: _descriptionController.text,
         latitude: widget.latitude ?? 0.0,
         longitude: widget.longitude ?? 0.0,
-        // For now, use a placeholder if the user selected an image
-        imageUrl: _isImageSelected ? 'https://via.placeholder.com/800x600.png?text=Sample+Complaint+Image' : null,
+        imageUrl: (_selectedImage != null) ? imageUrl : null,
       );
       
       if (mounted) {
@@ -108,6 +117,16 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
           ),
         );
       }
+    }
+  }
+
+  //Select image from gallery, then compress the image
+  Future<void> _selectImage(ImageSource source) async {
+    final XFile? pickedImage = await ImagePicker().pickImage(source: source);
+    if(pickedImage != null && mounted){
+      setState(() {
+        _selectedImage = pickedImage;
+      });
     }
   }
 
@@ -179,9 +198,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
             // Image selection
             GestureDetector(
               onTap: () {
-                setState(() {
-                  _isImageSelected = true;
-                });
+                _selectImage(ImageSource.gallery);
               },
               child: Container(
                 height: 200,
@@ -189,15 +206,9 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: _isImageSelected
+                child: (_selectedImage != null)
                     ? Center(
-                        child: Container(
-                          color: Colors.grey,
-                          child: const Text(
-                            'SELECTED IMAGE',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
+                        child: Image.file(File(_selectedImage!.path))
                       )
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,

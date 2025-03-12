@@ -52,5 +52,14 @@
     
     <key>NSLocationAlwaysUsageDescription</key>
     <string>This app needs access to location to show your position on the map and to accurately report complaints.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to allow selection of photo when submitting complaints</string>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to photo library to allow selection of photo when submitting complaints</string>
+
+	<!-- <key>NSCameraUsageDescription</key> -->
+	<!-- <string>We need access to your camera for taking pictures.</string> -->
 </dict>
 </plist>

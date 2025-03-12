@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'router.dart';
@@ -14,6 +16,24 @@ Future<void> main() async {
 
   final authService = AuthService();
   final appRouter = AppRouter(authService);
+
+  // Firebase app check
+  // To add the debug token to appcheck, look for the line below after flutter run 
+  // D/com.google.firebase.appcheck.debug.internal.DebugAppCheckProvider(10207): Enter this debug secret into the allow list in the Firebase Console for your project: _______ (copy this)
+  // Go to firebase website > Build(left side) > App Check > Apps (on top) > open menu (three dots when pointing on the tab) of kumplain(android) > Manage debug tokens > Add debug token
+  if(!kDebugMode) {
+    // -- havent Activated App Check in production
+    // await FirebaseAppCheck.instance.activate(
+    //   androidProvider: AndroidProvider.playIntegrity,
+    //   appleProvider: AppleProvider.appAttest,
+    //   webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
+    // );
+  } else {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.debug,
+    );
+  }
 
   runApp(MyApp(appRouter: appRouter));
 }
