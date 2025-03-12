@@ -40,6 +40,7 @@ class ComplaintService {
         userPhotoURL: currentUser!.photoURL,
         createdAt: DateTime.now(),
         imageUrl: imageUrl,
+        status: 'unresolved',
       );
       
       // Add the complaint to Firestore
@@ -82,5 +83,34 @@ class ComplaintService {
       throw Exception('User not logged in');
     }
     return _firestoreService.getUserComplaintStats(currentUser!.uid);
+  }
+  
+  // Get latest complaints with pagination
+  Future<List<ComplaintModel>> getLatestComplaints({
+    int limit = 10,
+    DocumentSnapshot? lastDocument,
+  }) async {
+    return _firestoreService.getLatestComplaints(
+      limit: limit,
+      startAfter: lastDocument,
+    );
+  }
+  
+  // Get complaints by status
+  Future<List<ComplaintModel>> getComplaintsByFilter({
+    String? status,
+    int limit = 10,
+    DocumentSnapshot? lastDocument,
+  }) async {
+    return _firestoreService.getComplaintsByFilter(
+      status: status,
+      limit: limit,
+      startAfter: lastDocument,
+    );
+  }
+  
+  // Search for complaints
+  Future<List<ComplaintModel>> searchComplaints(String query, {int limit = 10}) async {
+    return _firestoreService.searchComplaints(query, limit: limit);
   }
 }

@@ -12,6 +12,7 @@ class ComplaintModel {
   final DateTime createdAt;
   final int votes;
   final String? imageUrl;
+  final String? status;  
   
   ComplaintModel({
     this.id,
@@ -25,6 +26,7 @@ class ComplaintModel {
     required this.createdAt,
     this.votes = 0,
     this.imageUrl,
+    this.status,
   });
 
   factory ComplaintModel.fromFirestore(DocumentSnapshot doc) {
@@ -41,6 +43,7 @@ class ComplaintModel {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       votes: data['votes'] ?? 0,
       imageUrl: data['imageUrl'],
+      status: data['status'],
     );
   }
 
@@ -56,6 +59,7 @@ class ComplaintModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'votes': votes,
       'imageUrl': imageUrl,
+      'status': status,
     };
   }
 

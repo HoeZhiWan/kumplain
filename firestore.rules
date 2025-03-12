@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Complaints collection
+    match /complaints/{complaintId} {
+      // Anyone can read complaints
+      allow read: if true;
+      
+      // Only authenticated users can create complaints
+      allow create: if isSignedIn();
+      
+      // Only the creator or users with vote permission can update
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'votedBy'])
+      );
+      
+      // Only the creator can delete their complaint
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../router.dart';
 import '../services/map_service.dart';
 import '../services/location_service.dart';
+import '../services/complaint_service.dart';
 import '../controllers/map_controller_helper.dart';
 import '../widgets/map/selection_mode_marker.dart';
 import '../widgets/map/location_loading_indicator.dart';
@@ -86,19 +87,33 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     ));
   }
   
-  void _loadMarkers() {
+  Future<void> _loadMarkers() async {
+  try {
+    // Use ComplaintService to fetch complaints
+    final complaints = await ComplaintService().getAllComplaints().first;
+    
     setState(() {
-      _markers = mockComplaints.map((complaint) => 
-        MapService.createComplaintMarker(
-          id: complaint['id'] as String,
-          complaint: complaint,
-          onTap: (complaint) {
-            context.push('/complaint/${complaint['id']}', extra: complaint);
+      _markers = complaints.map((complaint) => 
+        Marker(
+          markerId: MarkerId(complaint.id ?? ''),
+          position: LatLng(complaint.latitude, complaint.longitude),
+          infoWindow: InfoWindow(
+            title: complaint.title,
+            snippet: complaint.description,
+            onTap: () {
+              context.push('/complaint/${complaint.id}');
+            },
+          ),
+          onTap: () {
+            context.push('/complaint/${complaint.id}');
           },
         )
       ).toSet();
     });
+  } catch (e) {
+    debugPrint('Error loading markers: $e');
   }
+}
 
   Future<void> _getCurrentLocation() async {
     if (mounted) {

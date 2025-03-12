@@ -148,4 +148,81 @@ class FirestoreService {
       return {'submitted': 0};
     }
   }
+
+  // Get latest complaints with pagination
+  Future<List<ComplaintModel>> getLatestComplaints({
+    int limit = 10,
+    DocumentSnapshot? startAfter,
+  }) async {
+    try {
+      Query query = complaints
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+      
+      // If startAfter is provided, use it for pagination
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+      
+      final snapshot = await query.get();
+      
+      return snapshot.docs
+          .map((doc) => ComplaintModel.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error getting latest complaints: $e');
+      return [];
+    }
+  }
+  
+  // Get latest complaints by status
+  Future<List<ComplaintModel>> getComplaintsByFilter({
+    String? status,
+    int limit = 10,
+    DocumentSnapshot? startAfter,
+  }) async {
+    try {
+      Query query = complaints.orderBy('createdAt', descending: true);
+      
+      if (status != null) {
+        query = query.where('status', isEqualTo: status);
+      }
+      
+      query = query.limit(limit);
+      
+      // If startAfter is provided, use it for pagination
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+      
+      final snapshot = await query.get();
+      
+      return snapshot.docs
+          .map((doc) => ComplaintModel.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error getting filtered complaints: $e');
+      return [];
+    }
+  }
+  
+  // Get complaints by search query
+  Future<List<ComplaintModel>> searchComplaints(String searchQuery, {int limit = 10}) async {
+    try {
+      // Since Firestore doesn't support native full-text search,
+      // we'll do a simple prefix search on title
+      final snapshot = await complaints
+          .where('title', isGreaterThanOrEqualTo: searchQuery)
+          .where('title', isLessThan: searchQuery + 'z')
+          .limit(limit)
+          .get();
+      
+      return snapshot.docs
+          .map((doc) => ComplaintModel.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error searching complaints: $e');
+      return [];
+    }
+  }
 }
