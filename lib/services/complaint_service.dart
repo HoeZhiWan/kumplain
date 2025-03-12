@@ -6,6 +6,7 @@ import 'firestore_service.dart';
 class ComplaintService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -112,5 +113,105 @@ class ComplaintService {
   // Search for complaints
   Future<List<ComplaintModel>> searchComplaints(String query, {int limit = 10}) async {
     return _firestoreService.searchComplaints(query, limit: limit);
+  }
+
+  Future<Map<String, dynamic>> updateVote(String complaintId, bool isUpvote) async {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final DocumentReference complaintRef = _firestore.collection('complaints').doc(complaintId);
+    
+    return _firestore.runTransaction((transaction) async {
+      final DocumentSnapshot complaintSnapshot = await transaction.get(complaintRef);
+      
+      if (!complaintSnapshot.exists) {
+        throw Exception('Complaint not found');
+      }
+      
+      final Map<String, dynamic> data = complaintSnapshot.data() as Map<String, dynamic>;
+      
+      // Get the current votes count and voted by map
+      final int currentVotes = data['votes'] ?? 0;
+      final Map<String, dynamic> votedBy = Map<String, dynamic>.from(data['votedBy'] ?? {});
+      
+      // Determine current user's vote status
+      final int previousVote = votedBy[currentUser.uid] ?? 0;
+      int voteChange = 0;
+      int newVote = 0;
+      
+      // Handle the voting logic
+      if (isUpvote) {
+        // User is upvoting
+        if (previousVote == 1) {
+          // Cancel upvote
+          newVote = 0;
+          voteChange = -1;
+        } else if (previousVote == -1) {
+          // Change from downvote to upvote
+          newVote = 1;
+          voteChange = 2;
+        } else {
+          // New upvote
+          newVote = 1;
+          voteChange = 1;
+        }
+      } else {
+        // User is downvoting
+        if (previousVote == -1) {
+          // Cancel downvote
+          newVote = 0;
+          voteChange = 1;
+        } else if (previousVote == 1) {
+          // Change from upvote to downvote
+          newVote = -1;
+          voteChange = -2;
+        } else {
+          // New downvote
+          newVote = -1;
+          voteChange = -1;
+        }
+      }
+      
+      if (newVote == 0) {
+        votedBy.remove(currentUser.uid);
+      } else {
+        votedBy[currentUser.uid] = newVote;
+      }
+      
+      // Update the document
+      transaction.update(complaintRef, {
+        'votes': currentVotes + voteChange,
+        'votedBy': votedBy,
+      });
+      
+      return {
+        'newVote': newVote,
+        'totalVotes': currentVotes + voteChange,
+      };
+    });
+  }
+
+  Future<Map<String, dynamic>> getVoteStatus(String complaintId) async {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return {'userVote': 0, 'totalVotes': 0};
+    }
+
+    final DocumentSnapshot complaintSnapshot = 
+        await _firestore.collection('complaints').doc(complaintId).get();
+    
+    if (!complaintSnapshot.exists) {
+      throw Exception('Complaint not found');
+    }
+    
+    final Map<String, dynamic> data = complaintSnapshot.data() as Map<String, dynamic>;
+    final Map<String, dynamic> votedBy = Map<String, dynamic>.from(data['votedBy'] ?? {});
+    
+    return {
+      'userVote': votedBy[currentUser.uid] ?? 0,
+      'totalVotes': data['votes'] ?? 0,
+    };
   }
 }

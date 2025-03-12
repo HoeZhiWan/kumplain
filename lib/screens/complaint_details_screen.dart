@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 // Add import for the new image viewer screen
 import 'image_viewer_screen.dart';
+import '../services/complaint_service.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   final String complaintId;
@@ -36,11 +37,29 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   late int _voteCount;
   bool _upvoted = false;
   bool _downvoted = false;
+  final ComplaintService _complaintService = ComplaintService();
+  bool _isVoting = false;
 
   @override
   void initState() {
     super.initState();
     _voteCount = widget.initialVotes;
+    // Load the user's current vote status
+    _loadVoteStatus();
+  }
+
+  Future<void> _loadVoteStatus() async {
+    try {
+      final voteStatus = await _complaintService.getVoteStatus(widget.complaintId);
+      setState(() {
+        _voteCount = voteStatus['totalVotes'];
+        _upvoted = voteStatus['userVote'] == 1;
+        _downvoted = voteStatus['userVote'] == -1;
+      });
+    } catch (e) {
+      // Handle error silently
+      debugPrint('Error loading vote status: $e');
+    }
   }
 
   // Mock data for comments
@@ -76,36 +95,60 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     });
   }
 
-  void _handleUpvote() {
+  Future<void> _handleUpvote() async {
+    if (_isVoting) return;
+    
     setState(() {
-      if (_upvoted) {
-        _upvoted = false;
-        _voteCount--;
-      } else {
-        _upvoted = true;
-        _voteCount++;
-        if (_downvoted) {
-          _downvoted = false;
-          _voteCount++;
-        }
-      }
+      _isVoting = true;
     });
+    
+    try {
+      final result = await _complaintService.updateVote(widget.complaintId, true);
+      
+      setState(() {
+        _voteCount = result['totalVotes'];
+        _upvoted = result['newVote'] == 1;
+        _downvoted = result['newVote'] == -1;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating vote: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVoting = false;
+        });
+      }
+    }
   }
 
-  void _handleDownvote() {
+  Future<void> _handleDownvote() async {
+    if (_isVoting) return;
+    
     setState(() {
-      if (_downvoted) {
-        _downvoted = false;
-        _voteCount++;
-      } else {
-        _downvoted = true;
-        _voteCount--;
-        if (_upvoted) {
-          _upvoted = false;
-          _voteCount--;
-        }
-      }
+      _isVoting = true;
     });
+    
+    try {
+      final result = await _complaintService.updateVote(widget.complaintId, false);
+      
+      setState(() {
+        _voteCount = result['totalVotes'];
+        _upvoted = result['newVote'] == 1;
+        _downvoted = result['newVote'] == -1;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating vote: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVoting = false;
+        });
+      }
+    }
   }
 
   // Helper method to check if a string is a network URL - improved implementation
@@ -326,18 +369,29 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                 Icons.arrow_upward,
                                 color: _upvoted ? Colors.green : Colors.grey[600],
                               ),
-                              onPressed: _handleUpvote,
+                              onPressed: _isVoting ? null : _handleUpvote,
                             ),
-                            Text(
-                              '$_voteCount',
-                              style: const TextStyle(fontSize: 16),
-                            ),
+                            _isVoting 
+                              ? SizedBox(
+                                  width: 20, 
+                                  height: 20, 
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.grey[600]!
+                                    ),
+                                  )
+                                )
+                              : Text(
+                                  '$_voteCount',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
                             IconButton(
                               icon: Icon(
                                 Icons.arrow_downward,
                                 color: _downvoted ? Colors.red : Colors.grey[600],
                               ),
-                              onPressed: _handleDownvote,
+                              onPressed: _isVoting ? null : _handleDownvote,
                             ),
                             const Spacer(),
                             IconButton(
