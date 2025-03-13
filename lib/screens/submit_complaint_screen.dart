@@ -73,11 +73,16 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     });
 
     try {
-      //Upload image to Firebase Storage
-      final imageUrl = await FirebaseStorageService().uploadImage(
-        _selectedImage, 
-        '/complaints/images',
-      );
+      final String? imageUrl;
+      if(_selectedImage != null){
+        //Upload image to Firebase Storage
+        imageUrl = await FirebaseStorageService().uploadImage(
+          _selectedImage!, 
+        );
+
+      } else{
+        imageUrl = null;
+      }
 
       // Submit to Firestore using the service
       final complaintId = await _complaintService.submitComplaint(
@@ -85,7 +90,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
         description: _descriptionController.text,
         latitude: widget.latitude ?? 0.0,
         longitude: widget.longitude ?? 0.0,
-        imageUrl: (_selectedImage != null) ? imageUrl : null,
+        imageUrl: imageUrl,
       );
       
       if (mounted) {
