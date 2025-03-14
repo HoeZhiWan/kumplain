@@ -116,9 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: const Text('My Complaints'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('My complaints not implemented yet')),
-                );
+                context.push('/my-complaints');
               },
             ),
             ListTile(

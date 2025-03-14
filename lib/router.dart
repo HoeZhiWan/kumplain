@@ -11,6 +11,7 @@ import 'services/auth_service.dart';
 import 'screens/complaint_details_screen.dart';
 import 'services/complaint_service.dart';
 import 'models/complaint_model.dart';
+import 'screens/user_complaints_screen.dart'; // Add import for the new screen
 
 class AppRouter {
   final AuthService authService;
@@ -59,6 +60,11 @@ class AppRouter {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      // Add new route for user complaints
+      GoRoute(
+        path: '/my-complaints',
+        builder: (context, state) => const UserComplaintsScreen(),
       ),
       GoRoute(
         path: '/complaint/:id',
