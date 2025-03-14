@@ -1,23 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/complaint_model.dart';
+import '../services/complaint_service.dart';
 
 class ComplaintCard extends StatelessWidget {
   final ComplaintModel complaint;
   final VoidCallback? onTap;
+  final VoidCallback? onDelete;
   
   const ComplaintCard({
     super.key,
     required this.complaint,
     this.onTap,
+    this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = complaint.status == 'resolved' 
-        ? Colors.green
-        : complaint.status == 'processing' 
-            ? Colors.amber
-            : Colors.red;
+    // Check if this is the user's own complaint
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final isOwnComplaint = currentUserId != null && currentUserId == complaint.userId;
+    
+    // Determine status and color
+    final String displayStatus;
+    final Color statusColor;
+    
+    if (complaint.status != null && complaint.status!.startsWith('deleted')) {
+      displayStatus = 'deleted';
+      statusColor = Colors.grey;
+    } else if (complaint.status == 'resolved') {
+      displayStatus = 'resolved';
+      statusColor = Colors.green;
+    } else if (complaint.status == 'processing') {
+      displayStatus = 'processing';
+      statusColor = Colors.amber;
+    } else {
+      displayStatus = complaint.status ?? 'pending';
+      statusColor = Colors.red;
+    }
 
     return Card(
       elevation: 2,
@@ -74,7 +94,7 @@ class ComplaintCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          complaint.status ?? 'pending',
+                          displayStatus,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -82,6 +102,33 @@ class ComplaintCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // Add delete option if it's user's own complaint
+                      if (isOwnComplaint && onDelete != null)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Delete Complaint'),
+                                content: const Text('Are you sure you want to delete this complaint?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      onDelete!();
+                                    },
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),

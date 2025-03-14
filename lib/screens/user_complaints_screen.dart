@@ -11,6 +11,28 @@ class UserComplaintsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ComplaintService complaintService = ComplaintService();
 
+    // Function to handle complaint deletion
+    Future<void> _handleDelete(String complaintId) async {
+      try {
+        await complaintService.markComplaintAsDeleted(complaintId);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Complaint marked as deleted'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${error.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Complaints'),
@@ -79,6 +101,7 @@ class UserComplaintsScreen extends StatelessWidget {
                 onTap: () {
                   context.push('/complaint/${complaint.id}');
                 },
+                onDelete: () => _handleDelete(complaint.id ?? ''),
               );
             },
           );

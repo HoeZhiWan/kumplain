@@ -235,4 +235,34 @@ class ComplaintService {
       'totalVotes': data['votes'] ?? 0,
     };
   }
+  
+  // Method to check if current user owns the complaint
+  Future<bool> isComplaintOwner(String complaintId) async {
+    if (currentUser == null) return false;
+    
+    try {
+      final complaint = await _firestoreService.getComplaint(complaintId);
+      if (complaint == null) return false;
+      
+      return complaint.userId == currentUser!.uid;
+    } catch (e) {
+      print('Error checking complaint ownership: $e');
+      return false;
+    }
+  }
+  
+  // Method to mark a complaint as deleted
+  Future<void> markComplaintAsDeleted(String complaintId) async {
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    
+    // Verify that the current user is the owner of the complaint
+    final isOwner = await isComplaintOwner(complaintId);
+    if (!isOwner) {
+      throw Exception('You can only delete your own complaints');
+    }
+    
+    await _firestoreService.markComplaintAsDeleted(complaintId);
+  }
 }

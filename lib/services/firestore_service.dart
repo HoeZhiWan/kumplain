@@ -149,6 +149,28 @@ class FirestoreService {
     }
   }
 
+  // Mark a complaint as deleted
+  Future<void> markComplaintAsDeleted(String id) async {
+    try {
+      // Get current status first
+      DocumentSnapshot doc = await complaints.doc(id).get();
+      if (!doc.exists) {
+        throw 'Complaint not found';
+      }
+      
+      String currentStatus = (doc.data() as Map<String, dynamic>)['status'] ?? 'unresolved';
+      
+      // Update with new status
+      await complaints.doc(id).update({
+        'status': 'deleted - $currentStatus',
+        'updatedAt': FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      print('Error marking complaint as deleted: $e');
+      throw e;
+    }
+  }
+
   // Update user's complaint count
   Future<void> updateUserComplaintCount(String userId) async {
     try {

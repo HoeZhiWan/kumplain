@@ -14,6 +14,7 @@ class ComplaintDetailsScreen extends StatefulWidget {
   final int initialVotes;
   final String? imageUrl; // Could be a network URL or asset path
   final List<String>? tags; // New attribute for tags
+  final String? status; // Added status field
 
   const ComplaintDetailsScreen({
     super.key,
@@ -27,6 +28,7 @@ class ComplaintDetailsScreen extends StatefulWidget {
     this.initialVotes = 0,
     this.imageUrl,
     this.tags = const [], // Initialize tags with an empty list by default
+    this.status, // Initialize status as null
   });
 
   @override
@@ -40,6 +42,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   bool _downvoted = false;
   final ComplaintService _complaintService = ComplaintService();
   bool _isVoting = false;
+  bool _isOwner = false;
 
   @override
   void initState() {
@@ -47,6 +50,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     _voteCount = widget.initialVotes;
     // Load the user's current vote status
     _loadVoteStatus();
+    _checkOwnership();
   }
 
   Future<void> _loadVoteStatus() async {
@@ -60,6 +64,15 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     } catch (e) {
       // Handle error silently
       debugPrint('Error loading vote status: $e');
+    }
+  }
+
+  Future<void> _checkOwnership() async {
+    bool isOwner = await _complaintService.isComplaintOwner(widget.complaintId);
+    if (mounted) {
+      setState(() {
+        _isOwner = isOwner;
+      });
     }
   }
 
@@ -172,8 +185,50 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     );
   }
 
+  Future<void> _handleDelete() async {
+    try {
+      await _complaintService.markComplaintAsDeleted(widget.complaintId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Complaint marked as deleted')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  // Method to determine status display properties
+  Map<String, dynamic> _getStatusDisplay() {
+    // Default values
+    String displayStatus = widget.status ?? 'pending';
+    Color statusColor = Colors.red;
+    
+    // Check for deleted status first
+    if (displayStatus.startsWith('deleted')) {
+      displayStatus = 'deleted';
+      statusColor = Colors.grey;
+    } else if (displayStatus == 'resolved') {
+      statusColor = Colors.green;
+    } else if (displayStatus == 'processing') {
+      statusColor = Colors.amber;
+    }
+    
+    return {
+      'text': displayStatus,
+      'color': statusColor,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    final statusDisplay = _getStatusDisplay();
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -188,14 +243,56 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('More options coming soon')),
-              );
-            },
-          ),
+          // Show more options menu
+          if (_isOwner)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'delete') {
+                  // Show confirmation dialog
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete Complaint'),
+                      content: const Text('Are you sure you want to delete this complaint?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _handleDelete();
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline),
+                      SizedBox(width: 8),
+                      Text('Delete'),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('More options coming soon')),
+                );
+              },
+            ),
         ],
       ),
       body: Column(
@@ -323,7 +420,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // User info and timestamp
+                        // User info and timestamp with status badge
                         Row(
                           children: [
                             const CircleAvatar(
@@ -338,6 +435,26 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                               ),
                             ),
                             const Spacer(),
+                            // Status badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusDisplay['color'].withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                statusDisplay['text'],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusDisplay['color'],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
                               widget.reportedAt,
                               style: TextStyle(

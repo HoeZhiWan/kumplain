@@ -94,6 +94,9 @@ class _MapScreenState extends State<MapScreen>
       
       setState(() {
         _markers = complaints
+            .where((complaint) => 
+                complaint.status == null || 
+                !complaint.status!.startsWith('deleted'))
             .map(
               (complaint) => Marker(
                 markerId: MarkerId(complaint.id ?? ''),
