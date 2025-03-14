@@ -7,10 +7,10 @@ class ComplaintService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   // Get current user
   User? get currentUser => _auth.currentUser;
-  
+
   // Submit a new complaint
   Future<String> submitComplaint({
     required String title,
@@ -25,12 +25,12 @@ class ComplaintService {
       if (currentUser == null) {
         throw Exception('User not logged in');
       }
-      
+
       // Check at the start of submitComplaint method
       if (_auth.currentUser == null) {
         throw Exception('You must be logged in to submit a complaint');
       }
-      
+
       // Create a new complaint with user info
       final complaint = ComplaintModel(
         title: title,
@@ -45,13 +45,13 @@ class ComplaintService {
         status: 'unresolved',
         tags: tags,
       );
-      
+
       // Add the complaint to Firestore
       final docRef = await _firestoreService.addComplaint(complaint);
-      
+
       // Update the user's complaint count
       await _firestoreService.updateUserComplaintCount(currentUser!.uid);
-      
+
       return docRef.id;
     } catch (e) {
       if (e.toString().contains('permission-denied')) {
@@ -61,12 +61,18 @@ class ComplaintService {
       }
     }
   }
-  
+
   // Get all complaints
   Stream<List<ComplaintModel>> getAllComplaints() {
-    return _firestoreService.getComplaints();
+    return _firestoreService.getComplaints().map((complaints) {
+      print('Retrieved ${complaints.length} complaints');
+      for (var complaint in complaints) {
+        print('Complaint ID: ${complaint.id}, User ID: ${complaint.userId}');
+      }
+      return complaints;
+    });
   }
-  
+
   // Get complaints by current user
   Stream<List<ComplaintModel>> getCurrentUserComplaints() {
     if (currentUser == null) {
@@ -74,12 +80,12 @@ class ComplaintService {
     }
     return _firestoreService.getUserComplaints(currentUser!.uid);
   }
-  
+
   // Get a specific complaint
   Future<ComplaintModel?> getComplaint(String id) {
     return _firestoreService.getComplaint(id);
   }
-  
+
   // Get user complaint stats for profile page
   Future<Map<String, int>> getUserStats() async {
     if (currentUser == null) {
@@ -87,7 +93,7 @@ class ComplaintService {
     }
     return _firestoreService.getUserComplaintStats(currentUser!.uid);
   }
-  
+
   // Get latest complaints with pagination
   Future<List<ComplaintModel>> getLatestComplaints({
     int limit = 10,
@@ -98,7 +104,7 @@ class ComplaintService {
       startAfter: lastDocument,
     );
   }
-  
+
   // Get complaints by status
   Future<List<ComplaintModel>> getComplaintsByFilter({
     String? status,
@@ -111,38 +117,51 @@ class ComplaintService {
       startAfter: lastDocument,
     );
   }
-  
+
   // Search for complaints
-  Future<List<ComplaintModel>> searchComplaints(String query, {int limit = 10}) async {
+  Future<List<ComplaintModel>> searchComplaints(
+    String query, {
+    int limit = 10,
+  }) async {
     return _firestoreService.searchComplaints(query, limit: limit);
   }
 
-  Future<Map<String, dynamic>> updateVote(String complaintId, bool isUpvote) async {
+  Future<Map<String, dynamic>> updateVote(
+    String complaintId,
+    bool isUpvote,
+  ) async {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) {
       throw Exception('User not authenticated');
     }
 
-    final DocumentReference complaintRef = _firestore.collection('complaints').doc(complaintId);
-    
+    final DocumentReference complaintRef = _firestore
+        .collection('complaints')
+        .doc(complaintId);
+
     return _firestore.runTransaction((transaction) async {
-      final DocumentSnapshot complaintSnapshot = await transaction.get(complaintRef);
-      
+      final DocumentSnapshot complaintSnapshot = await transaction.get(
+        complaintRef,
+      );
+
       if (!complaintSnapshot.exists) {
         throw Exception('Complaint not found');
       }
-      
-      final Map<String, dynamic> data = complaintSnapshot.data() as Map<String, dynamic>;
-      
+
+      final Map<String, dynamic> data =
+          complaintSnapshot.data() as Map<String, dynamic>;
+
       // Get the current votes count and voted by map
       final int currentVotes = data['votes'] ?? 0;
-      final Map<String, dynamic> votedBy = Map<String, dynamic>.from(data['votedBy'] ?? {});
-      
+      final Map<String, dynamic> votedBy = Map<String, dynamic>.from(
+        data['votedBy'] ?? {},
+      );
+
       // Determine current user's vote status
       final int previousVote = votedBy[currentUser.uid] ?? 0;
       int voteChange = 0;
       int newVote = 0;
-      
+
       // Handle the voting logic
       if (isUpvote) {
         // User is upvoting
@@ -175,23 +194,20 @@ class ComplaintService {
           voteChange = -1;
         }
       }
-      
+
       if (newVote == 0) {
         votedBy.remove(currentUser.uid);
       } else {
         votedBy[currentUser.uid] = newVote;
       }
-      
+
       // Update the document
       transaction.update(complaintRef, {
         'votes': currentVotes + voteChange,
         'votedBy': votedBy,
       });
-      
-      return {
-        'newVote': newVote,
-        'totalVotes': currentVotes + voteChange,
-      };
+
+      return {'newVote': newVote, 'totalVotes': currentVotes + voteChange};
     });
   }
 
@@ -201,16 +217,19 @@ class ComplaintService {
       return {'userVote': 0, 'totalVotes': 0};
     }
 
-    final DocumentSnapshot complaintSnapshot = 
+    final DocumentSnapshot complaintSnapshot =
         await _firestore.collection('complaints').doc(complaintId).get();
-    
+
     if (!complaintSnapshot.exists) {
       throw Exception('Complaint not found');
     }
-    
-    final Map<String, dynamic> data = complaintSnapshot.data() as Map<String, dynamic>;
-    final Map<String, dynamic> votedBy = Map<String, dynamic>.from(data['votedBy'] ?? {});
-    
+
+    final Map<String, dynamic> data =
+        complaintSnapshot.data() as Map<String, dynamic>;
+    final Map<String, dynamic> votedBy = Map<String, dynamic>.from(
+      data['votedBy'] ?? {},
+    );
+
     return {
       'userVote': votedBy[currentUser.uid] ?? 0,
       'totalVotes': data['votes'] ?? 0,

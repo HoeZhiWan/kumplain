@@ -24,12 +24,13 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin {
+class _MapScreenState extends State<MapScreen>
+    with SingleTickerProviderStateMixin {
   // Controllers
   late AnimationController _dragHintController;
   late Animation<Offset> _dragHintAnimation;
   late MapControllerHelper _mapControllerHelper;
-  
+
   // State variables
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
@@ -37,15 +38,15 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   bool _isLoadingLocation = false;
   LatLng? _userLocation;
   bool _showDefaultLocationMarker = false;
-  
+
   // Selection mode state
   bool _isSelectionMode = false;
   LatLng _selectedLocation = MapService.defaultCenter;
   bool _showDragHint = false;
   bool _isCameraMoving = false;
-  
+
   final LocationService _locationService = LocationService();
-  
+
   @override
   void initState() {
     super.initState();
@@ -59,76 +60,72 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         }
       },
     );
-    
+
     _loadMarkers();
     _initializeLocationServices();
     _initializeAnimations();
   }
-  
+
   void _initializeLocationServices() {
     // Request location permission
     _locationService.requestLocationPermission(context).then((_) {
       if (mounted) _getCurrentLocation();
     });
   }
-  
+
   void _initializeAnimations() {
     _dragHintController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    
+
     _dragHintAnimation = Tween<Offset>(
       begin: const Offset(0, 0),
       end: const Offset(0, -10),
-    ).animate(CurvedAnimation(
-      parent: _dragHintController,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(
+      CurvedAnimation(parent: _dragHintController, curve: Curves.easeInOut),
+    );
   }
-  
+
   Future<void> _loadMarkers() async {
-  try {
-    // Use ComplaintService to fetch complaints
-    final complaints = await ComplaintService().getAllComplaints().first;
-    
-    setState(() {
-      _markers = complaints.map((complaint) => 
-        Marker(
-          markerId: MarkerId(complaint.id ?? ''),
-          position: LatLng(complaint.latitude, complaint.longitude),
-          infoWindow: InfoWindow(
-            title: complaint.title,
-            snippet: complaint.description,
-            onTap: () {
-              context.push('/complaint/${complaint.id}');
-            },
-          ),
-          onTap: () {
-            context.push('/complaint/${complaint.id}');
-          },
-        )
-      ).toSet();
-    });
-  } catch (e) {
-    debugPrint('Error loading markers: $e');
+    try {
+      // Use ComplaintService to fetch complaints
+      final complaints = await ComplaintService().getAllComplaints().first;
+      
+      setState(() {
+        _markers = complaints
+            .map(
+              (complaint) => Marker(
+                markerId: MarkerId(complaint.id ?? ''),
+                position: LatLng(complaint.latitude, complaint.longitude),
+                infoWindow: InfoWindow(
+                  title: complaint.title,
+                  snippet: complaint.description,
+                ),
+                onTap: () {
+                  context.push('/complaint/${complaint.id}');
+                },
+              ),
+            )
+            .toSet();
+      });
+    } catch (e) {
+      debugPrint('Error loading markers: $e');
+    }
   }
-}
 
   Future<void> _getCurrentLocation() async {
     if (mounted) {
-      setState(() {
+      setState(() {   
         _isLoadingLocation = true;
       });
     }
-
     try {
       // Pass current zoom level to getUserLocation
       final locationData = await _locationService.getUserLocation(
         context,
-        mapZoom: _currentCameraPosition.zoom
+        mapZoom: _currentCameraPosition.zoom,
       );
-
       if (locationData != null && mounted) {
         setState(() {
           _userLocation = locationData.location;
@@ -136,7 +133,6 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
           _circles = locationData.circles;
           _isLoadingLocation = false;
         });
-        
         _moveToUserLocationWithDelay();
       } else if (mounted) {
         setState(() {
@@ -156,6 +152,44 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     }
   }
 
+  // Add refresh map method to reload markers and refresh location
+  Future<void> _refreshMap() async {
+    if (_isLoadingLocation) return; // Avoid refreshing if already loading
+    
+    setState(() {
+      _isLoadingLocation = true;
+    });
+    
+    try {
+      // Reload markers first
+      await _loadMarkers();
+      
+      // Then get current location
+      // await _getCurrentLocation();
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Map updated with latest data')),
+        );
+
+        setState(() {
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing map: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error refreshing map: $e')),
+        );
+        setState(() {
+          _isLoadingLocation = false;
+        });
+      }
+    }
+  }
+
   void _moveToUserLocationWithDelay() {
     // Move camera to user location if it's the first time
     if (_mapControllerHelper.mapController != null && _userLocation != null) {
@@ -171,45 +205,50 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   // Update circles based on zoom
   void _updateLocationCircles() {
     if (_userLocation == null) return;
-    
+
     setState(() {
       // Let LocationService handle the scaling calculations
       _circles = _locationService.updateLocationCircles(
         _userLocation!,
-        _currentCameraPosition.zoom
+        _currentCameraPosition.zoom,
       );
     });
-    
+
     // Debug output
-    debugPrint('Updated circles with zoom: ${_currentCameraPosition.zoom}');
+    // debugPrint('Updated circles with zoom: ${_currentCameraPosition.zoom}');
   }
-  
+
   // Navigation methods
   Future<void> _navigateToLocation(LatLng location, double zoom) async {
     return _mapControllerHelper.moveToLocation(location, zoom);
   }
-  
+
   Future<void> _goToUserLocation() async {
     if (_userLocation == null) {
       _getCurrentLocation();
       return;
     }
-    
-    return _mapControllerHelper.moveToLocationImmediately(_userLocation!, MapService.userLocationZoom);
+    return _mapControllerHelper.moveToLocationImmediately(
+      _userLocation!,
+      MapService.userLocationZoom,
+    );
   }
-  
+
   Future<void> _goToUM() async {
-    return _mapControllerHelper.moveToLocationImmediately(MapService.defaultCenter, MapService.defaultZoom);
+    return _mapControllerHelper.moveToLocationImmediately(
+      MapService.defaultCenter,
+      MapService.defaultZoom,
+    );
   }
-  
+
   void _zoomIn() {
     _mapControllerHelper.zoomIn();
   }
-  
+
   void _zoomOut() {
     _mapControllerHelper.zoomOut();
   }
-  
+
   // Selection mode methods
   void _enterSelectionMode() {
     setState(() {
@@ -217,7 +256,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       _selectedLocation = _currentCameraPosition.target;
       _showDragHint = true;
     });
-    
+
     // Hide drag hint after a few seconds
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
@@ -227,56 +266,58 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       }
     });
   }
-  
+
   void _cancelSelectionMode() {
     setState(() {
       _isSelectionMode = false;
       _showDragHint = false;
     });
   }
-  
+
   void _useSelectedLocation() {
     setState(() {
       _isSelectionMode = false;
       _showDragHint = false;
     });
-    
+
     // Navigate to complaint submission screen with selected location
-    context.push('/submit', extra: {
-      'latitude': _selectedLocation.latitude,
-      'longitude': _selectedLocation.longitude,
-    });
+    context.push(
+      '/submit',
+      extra: {
+        'latitude': _selectedLocation.latitude,
+        'longitude': _selectedLocation.longitude,
+      },
+    );
   }
-  
+
   // Map configuration
   void _configureMap(GoogleMapController controller) {
     _mapControllerHelper.setController(controller);
-    
+
     // Move to user location if already available
     if (_userLocation != null) {
       _moveToUserLocationWithDelay();
     }
   }
-  
+
   // Camera movement handler
   void _handleCameraMove(CameraPosition position) {
     setState(() {
       _currentCameraPosition = position;
-      
+
       if (_isSelectionMode) {
         _selectedLocation = position.target;
         _showDragHint = false;
       }
     });
-    
     _mapControllerHelper.handleCameraMove(position);
-    
+
     // Update user location circles when zoom changes
     if (_userLocation != null) {
       _updateLocationCircles();
     }
   }
-  
+
   // Build map UI components
   Widget _buildMap() {
     return GoogleMap(
@@ -297,24 +338,24 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       gestureRecognizers: MapService.getGestureRecognizers(),
     );
   }
-  
+
   // Build UI stack elements
   List<Widget> _buildUIOverlays() {
     final List<Widget> overlays = [];
-    
+
     // Add map as base layer
     overlays.add(_buildMap());
-    
+
     // Selection mode marker
     if (_isSelectionMode) {
       overlays.add(
         MapUIBuilder.buildSelectionModeMarker(
           animation: _dragHintAnimation,
           selectedLocation: _selectedLocation,
-        )
+        ),
       );
     }
-    
+
     // Drag hint overlay
     if (_isSelectionMode && _showDragHint) {
       overlays.add(
@@ -324,15 +365,21 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
               _showDragHint = false;
             });
           },
-        )
+        ),
       );
     }
-    
-    // Loading indicator
+
+    // Loading indicator with appropriate message
     if (_isLoadingLocation) {
-      overlays.add(MapUIBuilder.buildLoadingIndicator());
+      overlays.add(
+        MapUIBuilder.buildLoadingIndicator(
+          message: _userLocation == null 
+              ? "Getting your location..." 
+              : "Refreshing map data...",
+        ),
+      );
     }
-    
+
     // Map control buttons
     overlays.add(
       MapUIBuilder.buildMapControls(
@@ -341,19 +388,19 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         onUMPressed: _goToUM,
         onZoomInPressed: _zoomIn,
         onZoomOutPressed: _zoomOut,
-      )
+      ),
     );
-    
-    // Selection confirmation button
+
+    // Selection confirmation buttons
     if (_isSelectionMode) {
       overlays.add(
         MapUIBuilder.buildSelectionConfirmButton(
           showHint: !_showDragHint,
           onUseLocation: _useSelectedLocation,
-        )
+        ),
       );
     }
-    
+
     return overlays;
   }
 
@@ -363,6 +410,12 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       appBar: AppBar(
         title: const Text('Map'),
         actions: [
+          // Refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _isLoadingLocation ? null : _refreshMap,
+            tooltip: 'Refresh map',
+          ),
           if (_isSelectionMode)
             IconButton(
               icon: const Icon(Icons.close),
@@ -376,9 +429,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             ),
         ],
       ),
-      body: Stack(
-        children: _buildUIOverlays(),
-      ),
+      body: Stack(children: _buildUIOverlays()),
       floatingActionButton: MapUIBuilder.buildFloatingActionButton(
         isSelectionMode: _isSelectionMode,
         isCameraMoving: _isCameraMoving,
@@ -387,11 +438,11 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-  
+
   @override
   void dispose() {
-    _mapControllerHelper.dispose();
     _dragHintController.dispose();
+    _mapControllerHelper.dispose();
     super.dispose();
   }
 }

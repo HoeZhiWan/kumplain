@@ -58,6 +58,10 @@ dependencies {
     
     // Add Firebase Analytics if needed
     implementation("com.google.firebase:firebase-analytics")
+
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-auth")
 }
 
 flutter {

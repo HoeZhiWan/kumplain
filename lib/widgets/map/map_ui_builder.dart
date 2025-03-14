@@ -19,9 +19,11 @@ class MapUIBuilder {
     );
   }
   
-  // Build loading indicator
-  static Widget buildLoadingIndicator() {
-    return const LocationLoadingIndicator();
+  // Build loading indicator with custom message
+  static Widget buildLoadingIndicator({
+    String message = "Getting your location...",
+  }) {
+    return LocationLoadingIndicator(message: message);
   }
   
   // Build map control buttons

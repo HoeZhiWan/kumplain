@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
 class LocationLoadingIndicator extends StatelessWidget {
-  const LocationLoadingIndicator({super.key});
+  final String message;
+  
+  const LocationLoadingIndicator({
+    super.key,
+    this.message = "Getting your location..."
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Positioned(
+    return Positioned(
       top: 70,
       left: 0,
       right: 0,
@@ -23,7 +28,7 @@ class LocationLoadingIndicator extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 SizedBox(width: 12),
-                Text("Getting your location..."),
+                Text(message),
               ],
             ),
           ),

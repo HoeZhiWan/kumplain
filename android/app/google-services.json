@@ -14,6 +14,38 @@
       },
       "oauth_client": [
         {
+          "client_id": "475117397868-324896kpoijail1njbvfmsntde2m60l7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kumplain",
+            "certificate_hash": "cc9e4c1d7b466975cc48554e3df1416f492baffd"
+          }
+        },
+        {
+          "client_id": "475117397868-5ddpqeff3slcam0ku7atn5eh40tc8aq5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kumplain",
+            "certificate_hash": "4927bb878f51169cb404ea819de7be2942fb5dbd"
+          }
+        },
+        {
+          "client_id": "475117397868-k396s934qbiuhcreqgfmamo5ltlqcfbo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kumplain",
+            "certificate_hash": "9f8750c5c14e961bdb0ff2154a12e4c561a7256c"
+          }
+        },
+        {
+          "client_id": "475117397868-m6b67ldq7kgievo760jktr14ohs24496.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kumplain",
+            "certificate_hash": "b9308c5f7749d4a26754c3f07aa53789d6f48528"
+          }
+        },
+        {
           "client_id": "475117397868-g232gqrtseublkgls2bp45tv581fvdf1.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -31,10 +63,10 @@
               "client_type": 3
             },
             {
-              "client_id": "475117397868-rpi4dmj6vdad8c5pu4d2lcje7pki9a2u.apps.googleusercontent.com",
+              "client_id": "475117397868-97673vtl0a4pacbbvlvlj89a2tm9sak9.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.kumplainV1"
+                "bundle_id": "com.example.kumplain"
               }
             }
           ]
