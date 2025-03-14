@@ -180,7 +180,13 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
         title: Text(widget.title),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              context.go('/');
+            }
+          },
         ),
         actions: [
           IconButton(

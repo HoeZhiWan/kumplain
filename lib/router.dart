@@ -12,65 +12,6 @@ import 'screens/complaint_details_screen.dart';
 import 'services/complaint_service.dart';
 import 'models/complaint_model.dart';
 
-// Updated mock data for complaints with coordinates around Universiti Malaya
-final List<Map<String, dynamic>> mockComplaints = [
-  {
-    'id': '1',
-    'title': 'Broken street light',
-    'description': 'The street light has been broken for weeks now. It\'s becoming a safety hazard at night.',
-    'latitude': 3.1211, // Near UM main entrance
-    'longitude': 101.6556,
-    'reportedBy': 'citizen123',
-    'reportedAt': '3 hours ago',
-    'imageUrl': 'https://waterfordcouncil.ie/app/uploads/2023/04/street-light.jpg',
-    'votes': 15,
-  },
-  {
-    'id': '2',
-    'title': 'Pothole on road',
-    'description': 'There\'s a large pothole that\'s damaging vehicles. It needs immediate repair.',
-    'latitude': 3.1189, // Near Faculty of Engineering
-    'longitude': 101.6513,
-    'reportedBy': 'roaduser456',
-    'reportedAt': '1 day ago',
-    'imageUrl': 'assets/pothole_example.jpeg',
-    'votes': 32,
-  },
-  {
-    'id': '3', 
-    'title': 'Garbage not collected',
-    'description': 'The garbage has not been collected for over a week now. It\'s starting to smell and attract pests.',
-    'latitude': 3.1156, // Near UM Central Library
-    'longitude': 101.6573,
-    'reportedBy': 'resident789',
-    'reportedAt': '2 days ago',
-    'imageUrl': null,
-    'votes': 8,
-  },
-  {
-    'id': '4', 
-    'title': 'Fallen tree blocking sidewalk',
-    'description': 'A tree has fallen and is completely blocking the sidewalk. Pedestrians have to walk on the street which is dangerous.',
-    'latitude': 3.1231, // Near Faculty of Science
-    'longitude': 101.6534,
-    'reportedBy': 'walker123',
-    'reportedAt': '5 hours ago',
-    'imageUrl': null,
-    'votes': 27,
-  },
-  {
-    'id': '5', 
-    'title': 'Graffiti on public building',
-    'description': 'Someone has vandalized the wall of the community center with inappropriate graffiti.',
-    'latitude': 3.1194, // Near UM Sports Center
-    'longitude': 101.6490,
-    'reportedBy': 'civic_minded',
-    'reportedAt': '1 week ago',
-    'imageUrl': null,
-    'votes': 12,
-  },
-];
-
 class AppRouter {
   final AuthService authService;
   final ComplaintService complaintService = ComplaintService();
