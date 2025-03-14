@@ -8,6 +8,7 @@ class FirestoreService {
   // Collection references
   CollectionReference get users => _firestore.collection('users');
   CollectionReference get complaints => _firestore.collection('complaints');
+  DocumentReference get libraryComplaintDoc => _firestore.collection('library').doc('complaint');
 
   // Get user document reference
   DocumentReference getUserDoc(String uid) => users.doc(uid);
@@ -222,6 +223,21 @@ class FirestoreService {
           .toList();
     } catch (e) {
       print('Error searching complaints: $e');
+      return [];
+    }
+  }
+
+  // Get tags from the library collection
+  Future<List<String>> getTags() async {
+    try {
+      DocumentSnapshot doc = await libraryComplaintDoc.get();
+      if (doc.exists) {
+        List<dynamic> tags = doc['tags'];
+        return tags.cast<String>();
+      }
+      return [];
+    } catch (e) {
+      print('Error getting tags: $e');
       return [];
     }
   }

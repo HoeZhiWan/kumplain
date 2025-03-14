@@ -3,7 +3,8 @@ import  'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:kumplain/services/firebase_storage_service.dart';
+import '../services/firebase_storage_service.dart';
+import '../services/firestore_service.dart';
 import '../services/complaint_service.dart';
 
 class SubmitComplaintScreen extends StatefulWidget {
@@ -24,8 +25,72 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   XFile? _selectedImage;
+  List<String> _tags = [];
   bool _isSubmitting = false;
   final ComplaintService _complaintService = ComplaintService();
+  List<String> _availableTags = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTags();
+  }
+
+  Future<void> _loadTags() async {
+    _availableTags = await FirestoreService().getTags();
+    setState(() {});
+  }
+
+  void _selectTags() async {
+    final List<String>? selectedTags = await showDialog<List<String>>(
+      context: context,
+      builder: (context) {
+        final List<String> tempSelectedTags = List.from(_tags);
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Select Tags'),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: _availableTags.map((tag) {
+                    return CheckboxListTile(
+                      title: Text(tag),
+                      value: tempSelectedTags.contains(tag),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            tempSelectedTags.add(tag);
+                          } else {
+                            tempSelectedTags.remove(tag);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(tempSelectedTags),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+
+    if (selectedTags != null) {
+      setState(() {
+        _tags = selectedTags;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -91,6 +156,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
         latitude: widget.latitude ?? 0.0,
         longitude: widget.longitude ?? 0.0,
         imageUrl: imageUrl,
+        tags: _tags,
       );
       
       if (mounted) {
@@ -197,6 +263,39 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
               minLines: 3,
               maxLines: 5,
               textCapitalization: TextCapitalization.sentences,
+            ),
+            const SizedBox(height: 16),
+            
+            // Tags selection
+            GestureDetector(
+              onTap: _selectTags,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tags',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    _tags.isEmpty
+                        ? const Text('No tags selected')
+                        : Wrap(
+                            spacing: 8,
+                            children: _tags.map((tag) {
+                              return Chip(
+                                label: Text(tag),
+                              );
+                            }).toList(),
+                          ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             

@@ -14,6 +14,7 @@ class ComplaintDetailsScreen extends StatefulWidget {
   final String reportedAt;
   final int initialVotes;
   final String? imageUrl; // Could be a network URL or asset path
+  final List<String>? tags; // New attribute for tags
 
   const ComplaintDetailsScreen({
     super.key,
@@ -26,6 +27,7 @@ class ComplaintDetailsScreen extends StatefulWidget {
     required this.reportedAt,
     this.initialVotes = 0,
     this.imageUrl,
+    this.tags = const [], // Initialize tags with an empty list by default
   });
 
   @override
@@ -155,6 +157,20 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   bool _isNetworkImage(String? path) {
     if (path == null || path.isEmpty) return false;
     return path.startsWith('http://') || path.startsWith('https://');
+  }
+
+  Widget _displayTags(){
+    if (widget.tags == null || widget.tags!.isEmpty) return const SizedBox(height: 12);
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 4.0,
+      children: widget.tags!.map((tag) => Chip(
+        padding: const EdgeInsets.all(1),
+        label: Text(tag),
+        labelStyle: const TextStyle(fontSize: 12),
+        backgroundColor: Colors.blue[100],
+      )).toList(),
+    );
   }
 
   @override
@@ -326,7 +342,9 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+
+                        // Display tags
+                        _displayTags(),
 
                         // Title
                         Text(

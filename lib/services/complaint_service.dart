@@ -18,6 +18,7 @@ class ComplaintService {
     required double latitude,
     required double longitude,
     String? imageUrl,
+    List<String>? tags,
   }) async {
     try {
       // Ensure user is logged in
@@ -42,6 +43,7 @@ class ComplaintService {
         createdAt: DateTime.now(),
         imageUrl: imageUrl,
         status: 'unresolved',
+        tags: tags,
       );
       
       // Add the complaint to Firestore

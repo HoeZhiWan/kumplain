@@ -13,6 +13,7 @@ class ComplaintModel {
   final int votes;
   final String? imageUrl;
   final String? status;  
+  final List<String>? tags;
   
   ComplaintModel({
     this.id,
@@ -27,6 +28,7 @@ class ComplaintModel {
     this.votes = 0,
     this.imageUrl,
     this.status,
+    this.tags,
   });
 
   factory ComplaintModel.fromFirestore(DocumentSnapshot doc) {
@@ -44,6 +46,7 @@ class ComplaintModel {
       votes: data['votes'] ?? 0,
       imageUrl: data['imageUrl'],
       status: data['status'],
+      tags: data['tags']?.cast<String>(),
     );
   }
 
@@ -60,6 +63,7 @@ class ComplaintModel {
       'votes': votes,
       'imageUrl': imageUrl,
       'status': status,
+      'tags': tags,
     };
   }
 

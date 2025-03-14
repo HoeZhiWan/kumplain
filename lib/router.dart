@@ -170,6 +170,7 @@ class AppRouter {
                   reportedAt: complaint.timeAgo,
                   initialVotes: complaint.votes,
                   imageUrl: complaint.imageUrl,
+                  tags: complaint.tags,
                 );
               },
             );
