@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/complaint_model.dart';
+import '../models/comment_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -8,6 +9,7 @@ class FirestoreService {
   // Collection references
   CollectionReference get users => _firestore.collection('users');
   CollectionReference get complaints => _firestore.collection('complaints');
+  CollectionReference get comments => _firestore.collection('comments');
   DocumentReference get libraryComplaintDoc => _firestore.collection('library').doc('complaint');
 
   // Get user document reference
@@ -200,6 +202,50 @@ class FirestoreService {
     }
   }
 
+  // Get detailed user complaint statistics with status breakdown
+  Future<Map<String, int>> getDetailedUserComplaintStats(String userId) async {
+    try {
+      final QuerySnapshot userComplaints =
+          await complaints.where('userId', isEqualTo: userId).get();
+      
+      int activeCount = 0;
+      int deletedCount = 0;
+      int resolvedCount = 0;
+      
+      // Process each complaint to categorize by status
+      for (var doc in userComplaints.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final status = data['status'] as String?;
+        
+        if (status == null || status.isEmpty) {
+          activeCount++; // Treat null/empty status as active
+        } else if (status.startsWith('deleted')) {
+          deletedCount++;
+        } else if (status == 'resolved') {
+          resolvedCount++;
+        } else {
+          // All other statuses (pending, processing, etc.) are active
+          activeCount++;
+        }
+      }
+      
+      return {
+        'submitted': userComplaints.docs.length,
+        'active': activeCount,
+        'deleted': deletedCount,
+        'resolved': resolvedCount,
+      };
+    } catch (e) {
+      print('Error getting detailed user complaint stats: $e');
+      return {
+        'submitted': 0,
+        'active': 0,
+        'deleted': 0,
+        'resolved': 0
+      };
+    }
+  }
+
   // Get latest complaints with pagination
   Future<List<ComplaintModel>> getLatestComplaints({
     int limit = 10,
@@ -293,6 +339,114 @@ class FirestoreService {
     } catch (e) {
       print('Error getting tags: $e');
       return [];
+    }
+  }
+
+  // Comment methods
+
+  // Get comments for a complaint
+  Stream<List<CommentModel>> getComments(String complaintId) {
+    try {
+      return comments
+        .where('complaintId', isEqualTo: complaintId)
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+            .map((doc) => CommentModel.fromFirestore(doc))
+            .toList(),
+        );
+    } catch (e) {
+      print('Error getting comments: $e');
+      return Stream.value([]);
+    }
+  }
+
+  // Add a new comment
+  Future<DocumentReference> addComment(CommentModel comment) async {
+    try {
+      // Start a transaction to update both collections
+      final DocumentReference commentRef = await _firestore.runTransaction((transaction) async {
+        // Get the complaint document
+        final DocumentReference complaintRef = complaints.doc(comment.complaintId);
+        final DocumentSnapshot complaintDoc = await transaction.get(complaintRef);
+        
+        if (!complaintDoc.exists) {
+          throw 'Complaint not found';
+        }
+        
+        // Get current comment count
+        final data = complaintDoc.data() as Map<String, dynamic>;
+        final int currentCommentCount = data['commentCount'] ?? 0;
+        
+        // Add the new comment
+        final DocumentReference newCommentRef = comments.doc();
+        transaction.set(newCommentRef, comment.toMap());
+        
+        // Update the comment count in the complaint document
+        transaction.update(complaintRef, {
+          'commentCount': currentCommentCount + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        return newCommentRef;
+      });
+      
+      return commentRef;
+    } catch (e) {
+      print('Error adding comment: $e');
+      throw e;
+    }
+  }
+
+  // Delete a comment
+  Future<void> deleteComment(String id, String complaintId) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        // Get the complaint document
+        final DocumentReference complaintRef = complaints.doc(complaintId);
+        final DocumentReference commentRef = comments.doc(id);
+        
+        final DocumentSnapshot complaintDoc = await transaction.get(complaintRef);
+        final DocumentSnapshot commentDoc = await transaction.get(commentRef);
+        
+        if (!complaintDoc.exists) {
+          throw 'Complaint not found';
+        }
+        
+        if (!commentDoc.exists) {
+          throw 'Comment not found';
+        }
+        
+        // Get current comment count
+        final data = complaintDoc.data() as Map<String, dynamic>;
+        final int currentCommentCount = data['commentCount'] ?? 0;
+        
+        // Delete the comment
+        transaction.delete(commentRef);
+        
+        // Update the comment count in the complaint document
+        transaction.update(complaintRef, {
+          'commentCount': currentCommentCount > 0 ? currentCommentCount - 1 : 0,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      print('Error deleting comment: $e');
+      throw e;
+    }
+  }
+
+  // Get comment count for a complaint
+  Future<int> getCommentCount(String complaintId) async {
+    try {
+      final QuerySnapshot snapshot = await comments
+        .where('complaintId', isEqualTo: complaintId)
+        .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      print('Error getting comment count: $e');
+      return 0;
     }
   }
 }

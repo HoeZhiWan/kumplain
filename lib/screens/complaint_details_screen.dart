@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'image_viewer_screen.dart';
 import '../services/complaint_service.dart';
+import '../models/comment_model.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   final String complaintId;
@@ -12,9 +13,10 @@ class ComplaintDetailsScreen extends StatefulWidget {
   final String reportedBy;
   final String reportedAt;
   final int initialVotes;
-  final String? imageUrl; // Could be a network URL or asset path
-  final List<String>? tags; // New attribute for tags
-  final String? status; // Added status field
+  final String? imageUrl; 
+  final List<String>? tags; 
+  final String? status; 
+  final String? userPhotoURL; 
 
   const ComplaintDetailsScreen({
     super.key,
@@ -27,8 +29,9 @@ class ComplaintDetailsScreen extends StatefulWidget {
     required this.reportedAt,
     this.initialVotes = 0,
     this.imageUrl,
-    this.tags = const [], // Initialize tags with an empty list by default
-    this.status, // Initialize status as null
+    this.tags = const [], 
+    this.status, 
+    this.userPhotoURL, 
   });
 
   @override
@@ -43,14 +46,18 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   final ComplaintService _complaintService = ComplaintService();
   bool _isVoting = false;
   bool _isOwner = false;
+  bool _isSubmittingComment = false;
+  Stream<List<CommentModel>>? _commentsStream;
+  int _commentCount = 0;
 
   @override
   void initState() {
     super.initState();
     _voteCount = widget.initialVotes;
-    // Load the user's current vote status
     _loadVoteStatus();
     _checkOwnership();
+    _loadComments();
+    _loadCommentCount();
   }
 
   Future<void> _loadVoteStatus() async {
@@ -76,19 +83,24 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     }
   }
 
-  // Mock data for comments
-  final List<Map<String, dynamic>> _comments = [
-    {
-      'username': 'john_doe',
-      'text': 'I saw this too! It needs to be fixed ASAP.',
-      'timeAgo': '2h ago',
-    },
-    {
-      'username': 'city_maintenance',
-      'text': 'Thanks for reporting. We\'ve scheduled a team to look at this issue.',
-      'timeAgo': '1h ago',
-    },
-  ];
+  void _loadComments() {
+    setState(() {
+      _commentsStream = _complaintService.getComments(widget.complaintId);
+    });
+  }
+  
+  Future<void> _loadCommentCount() async {
+    try {
+      final count = await _complaintService.getCommentCount(widget.complaintId);
+      if (mounted) {
+        setState(() {
+          _commentCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading comment count: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -96,17 +108,33 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     super.dispose();
   }
 
-  void _addComment() {
+  Future<void> _addComment() async {
     if (_commentController.text.trim().isEmpty) return;
-
+    
     setState(() {
-      _comments.add({
-        'username': 'current_user',
-        'text': _commentController.text,
-        'timeAgo': 'Just now',
-      });
-      _commentController.clear();
+      _isSubmittingComment = true;
     });
+
+    try {
+      // Add comment to Firestore
+      await _complaintService.addComment(widget.complaintId, _commentController.text.trim());
+      
+      // Clear the input field
+      _commentController.clear();
+      
+      // Update comment count
+      _loadCommentCount();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding comment: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingComment = false;
+        });
+      }
+    }
   }
 
   Future<void> _handleUpvote() async {
@@ -423,9 +451,14 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                         // User info and timestamp with status badge
                         Row(
                           children: [
-                            const CircleAvatar(
+                            CircleAvatar(
                               radius: 16,
-                              child: Icon(Icons.person, size: 18),
+                              backgroundImage: widget.userPhotoURL != null 
+                                  ? NetworkImage(widget.userPhotoURL!) 
+                                  : null,
+                              child: widget.userPhotoURL == null
+                                  ? const Icon(Icons.person, size: 18)
+                                  : null,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -545,7 +578,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                               },
                             ),
                             Text(
-                              '${_comments.length}',
+                              '$_commentCount',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 16,
@@ -558,62 +591,109 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                         const Divider(thickness: 1),
 
                         // Comments section title
-                        const Text(
-                          'Comments',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'Comments',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
 
-                        // Comments list
-                        ..._comments.map((comment) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const CircleAvatar(
-                                radius: 14,
-                                child: Icon(Icons.person, size: 16),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                                      textBaseline: TextBaseline.alphabetic,
-                                      children: [
-                                        Text(
-                                          comment['username'],
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          comment['timeAgo'],
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      comment['text'],
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  ],
+                        // Comments list with stream builder
+                        StreamBuilder<List<CommentModel>>(
+                          stream: _commentsStream,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
                                 ),
+                              );
+                            }
+                            
+                            if (snapshot.hasError) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text('Error loading comments: ${snapshot.error}'),
+                              );
+                            }
+                            
+                            final comments = snapshot.data ?? [];
+                            
+                            if (comments.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Text('No comments yet. Be the first to comment!'),
+                              );
+                            }
+                            
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: comments.map((comment) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 14,
+                                        backgroundImage: comment.userPhotoURL != null
+                                          ? NetworkImage(comment.userPhotoURL!)
+                                          : null,
+                                        child: comment.userPhotoURL == null
+                                          ? const Icon(Icons.person, size: 16)
+                                          : null,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                                              textBaseline: TextBaseline.alphabetic,
+                                              children: [
+                                                Text(
+                                                  comment.userName,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  comment.timeAgo,
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              comment.text,
+                                              style: const TextStyle(fontSize: 14),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )).toList(),
                               ),
-                            ],
-                          ),
-                        )).toList(),
+                            );
+                          },
+                        ),
+                        
+                        // Add some padding at the bottom of the scrollable area
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -637,9 +717,14 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
             ),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 16,
-                  child: Icon(Icons.person, size: 18),
+                  backgroundImage: _complaintService.currentUser?.photoURL != null
+                    ? NetworkImage(_complaintService.currentUser!.photoURL!)
+                    : null,
+                  child: _complaintService.currentUser?.photoURL == null
+                    ? const Icon(Icons.person, size: 18)
+                    : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -653,10 +738,16 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: _addComment,
-                  child: const Text('Post'),
-                ),
+                _isSubmittingComment 
+                  ? const SizedBox(
+                      width: 20, 
+                      height: 20, 
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : TextButton(
+                      onPressed: _addComment,
+                      child: const Text('Post'),
+                    ),
               ],
             ),
           ),

@@ -16,6 +16,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   
   bool _isLoading = true;
   int _submittedComplaints = 0;
+  int _activeComplaints = 0;
+  int _resolvedComplaints = 0;
 
   @override
   void initState() {
@@ -29,10 +31,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     
     try {
-      final stats = await _complaintService.getUserStats();
+      final stats = await _complaintService.getDetailedUserStats();
       if (mounted) {
         setState(() {
           _submittedComplaints = stats['submitted'] ?? 0;
+          _activeComplaints = stats['active'] ?? 0;
+          _resolvedComplaints = stats['resolved'] ?? 0;
           _isLoading = false;
         });
       }
@@ -172,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: _buildStatCard(
             context,
             'Active',
-            _submittedComplaints.toString(), // For now, all complaints are active
+            _activeComplaints.toString(), // Now shows actual active count
             Icons.check_circle,
             Colors.green,
           ),

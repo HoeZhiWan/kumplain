@@ -1,73 +1,45 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ComplaintModel {
+class CommentModel {
   final String? id;
-  final String title;
-  final String description;
-  final double latitude;
-  final double longitude;
+  final String complaintId;
   final String userId;
   final String userName;
   final String? userPhotoURL;
+  final String text;
   final DateTime createdAt;
-  final int votes;
-  final String? imageUrl;
-  final String? status;  
-  final List<String>? tags;
-  final int commentCount; // Added comment count property
   
-  ComplaintModel({
+  CommentModel({
     this.id,
-    required this.title,
-    required this.description,
-    required this.latitude,
-    required this.longitude,
+    required this.complaintId,
     required this.userId,
     required this.userName,
     this.userPhotoURL,
+    required this.text,
     required this.createdAt,
-    this.votes = 0,
-    this.imageUrl,
-    this.status,
-    this.tags,
-    this.commentCount = 0, // Default to 0
   });
 
-  factory ComplaintModel.fromFirestore(DocumentSnapshot doc) {
+  factory CommentModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    return ComplaintModel(
+    return CommentModel(
       id: doc.id,
-      title: data['title'] ?? '',
-      description: data['description'] ?? '',
-      latitude: (data['latitude'] ?? 0.0).toDouble(),
-      longitude: (data['longitude'] ?? 0.0).toDouble(),
+      complaintId: data['complaintId'] ?? '',
       userId: data['userId'] ?? '',
       userName: data['userName'] ?? 'Anonymous',
       userPhotoURL: data['userPhotoURL'],
+      text: data['text'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      votes: data['votes'] ?? 0,
-      imageUrl: data['imageUrl'],
-      status: data['status'],
-      tags: data['tags']?.cast<String>(),
-      commentCount: data['commentCount'] ?? 0, // Read comment count from Firestore
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'title': title,
-      'description': description,
-      'latitude': latitude,
-      'longitude': longitude,
+      'complaintId': complaintId,
       'userId': userId,
       'userName': userName,
       'userPhotoURL': userPhotoURL,
+      'text': text,
       'createdAt': Timestamp.fromDate(createdAt),
-      'votes': votes,
-      'imageUrl': imageUrl,
-      'status': status,
-      'tags': tags,
-      'commentCount': commentCount, // Add comment count to the map
     };
   }
 

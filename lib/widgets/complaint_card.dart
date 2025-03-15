@@ -25,7 +25,10 @@ class ComplaintCard extends StatelessWidget {
     final String displayStatus;
     final Color statusColor;
     
-    if (complaint.status != null && complaint.status!.startsWith('deleted')) {
+    // Check if complaint is deleted
+    final bool isDeleted = complaint.status != null && complaint.status!.startsWith('deleted');
+    
+    if (isDeleted) {
       displayStatus = 'deleted';
       statusColor = Colors.grey;
     } else if (complaint.status == 'resolved') {
@@ -102,8 +105,8 @@ class ComplaintCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // Add delete option if it's user's own complaint
-                      if (isOwnComplaint && onDelete != null)
+                      // Only show delete option if it's user's own complaint AND not already deleted
+                      if (isOwnComplaint && !isDeleted && onDelete != null)
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 20),
                           onPressed: () {
@@ -194,6 +197,21 @@ class ComplaintCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         '${complaint.votes}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Add comment count icon and text
+                      const Icon(
+                        Icons.comment_outlined,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${complaint.commentCount}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,

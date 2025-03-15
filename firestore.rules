@@ -37,12 +37,24 @@ service cloud.firestore {
       // Only the creator can delete their complaint
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       
-      // Comments subcollection
+      // Comments subcollection - keeping this for backward compatibility
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isSignedIn();
         allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       }
+    }
+    
+    // Top-level comments collection
+    match /comments/{commentId} {
+      // Anyone can read comments
+      allow read: if true;
+      
+      // Only authenticated users can create comments
+      allow create: if isSignedIn();
+      
+      // Only the comment author can update or delete
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

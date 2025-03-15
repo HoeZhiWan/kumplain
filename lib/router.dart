@@ -88,6 +88,7 @@ class AppRouter {
               initialVotes: complaintData['votes'] as int? ?? 0,
               imageUrl: complaintData['imageUrl'] as String?,
               status: complaintData['status'] as String?,
+              userPhotoURL: complaintData['userPhotoURL'] as String?,
             );
           } else {
             // If no data is passed, return a loading screen that fetches the complaint
@@ -120,6 +121,7 @@ class AppRouter {
                   imageUrl: complaint.imageUrl,
                   tags: complaint.tags,
                   status: complaint.status,
+                  userPhotoURL: complaint.userPhotoURL,
                 );
               },
             );

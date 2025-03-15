@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/complaint_model.dart';
+import '../models/comment_model.dart';
 import 'firestore_service.dart';
 
 class ComplaintService {
@@ -92,6 +93,14 @@ class ComplaintService {
       throw Exception('User not logged in');
     }
     return _firestoreService.getUserComplaintStats(currentUser!.uid);
+  }
+
+  // Get detailed user complaint stats including active/deleted/resolved counts
+  Future<Map<String, int>> getDetailedUserStats() async {
+    if (currentUser == null) {
+      throw Exception('User not logged in');
+    }
+    return _firestoreService.getDetailedUserComplaintStats(currentUser!.uid);
   }
 
   // Get latest complaints with pagination
@@ -264,5 +273,52 @@ class ComplaintService {
     }
     
     await _firestoreService.markComplaintAsDeleted(complaintId);
+  }
+
+  // Comment methods
+  
+  // Get comments for a complaint
+  Stream<List<CommentModel>> getComments(String complaintId) {
+    return _firestoreService.getComments(complaintId);
+  }
+
+  // Add a new comment
+  Future<String> addComment(String complaintId, String text) async {
+    try {
+      // Ensure user is logged in
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Create a new comment with user info
+      final comment = CommentModel(
+        complaintId: complaintId,
+        userId: currentUser!.uid,
+        userName: currentUser!.displayName ?? 'Anonymous User',
+        userPhotoURL: currentUser!.photoURL,
+        text: text,
+        createdAt: DateTime.now(),
+      );
+
+      // Add the comment to Firestore
+      final docRef = await _firestoreService.addComment(comment);
+      return docRef.id;
+    } catch (e) {
+      throw 'Error adding comment: ${e.toString()}';
+    }
+  }
+
+  // Delete a comment
+  Future<void> deleteComment(String commentId, String complaintId) async {
+    try {
+      await _firestoreService.deleteComment(commentId, complaintId);
+    } catch (e) {
+      throw 'Error deleting comment: ${e.toString()}';
+    }
+  }
+
+  // Get comment count for a complaint
+  Future<int> getCommentCount(String complaintId) async {
+    return _firestoreService.getCommentCount(complaintId);
   }
 }
