@@ -32,10 +32,87 @@ class FirestoreService {
   // Create or update user
   Future<void> setUser(UserModel user) async {
     try {
+      // Check if this is an update to an existing user
+      final existingUser = await getUser(user.uid);
+      final isUpdate = existingUser != null;
+      
       await getUserDoc(user.uid).set(user.toMap());
+      
+      // If this is an update and display name or photo URL changed, propagate changes
+      if (isUpdate && (existingUser.displayName != user.displayName || 
+                       existingUser.photoURL != user.photoURL)) {
+        await updateUserReferences(user);
+      }
     } catch (e) {
       print('Error saving user: $e');
       throw e;
+    }
+  }
+
+  // Update user profile data in all complaints and comments
+  Future<void> updateUserReferences(UserModel user) async {
+    try {
+      print('Updating user references for ${user.uid}');
+      
+      // Batch update all complaints by this user
+      final userComplaints = await complaints.where('userId', isEqualTo: user.uid).get();
+      
+      // Use batched writes for better performance
+      final batch = _firestore.batch();
+      
+      for (var doc in userComplaints.docs) {
+        batch.update(doc.reference, {
+          'userName': user.displayName,
+          'userPhotoURL': user.photoURL,
+          'userDataVersion': Timestamp.fromDate(user.lastUpdated),
+        });
+      }
+      
+      // Also update all comments by this user
+      final userComments = await comments.where('userId', isEqualTo: user.uid).get();
+      
+      for (var doc in userComments.docs) {
+        batch.update(doc.reference, {
+          'userName': user.displayName,
+          'userPhotoURL': user.photoURL,
+          'userDataVersion': Timestamp.fromDate(user.lastUpdated),
+        });
+      }
+      
+      // Commit all updates
+      await batch.commit();
+      print('Updated ${userComplaints.docs.length} complaints and ${userComments.docs.length} comments');
+    } catch (e) {
+      print('Error updating user references: $e');
+      throw e;
+    }
+  }
+
+  // Check if user data needs updating in a specific document
+  bool isUserDataOutdated(DateTime docVersion, DateTime userLastUpdated) {
+    return docVersion.isBefore(userLastUpdated);
+  }
+
+  // Get complaints with up-to-date user info
+  Future<void> ensureUpdatedUserData(ComplaintModel complaint) async {
+    if (complaint.userId.isEmpty) return;
+    
+    try {
+      // Get the latest user data
+      final user = await getUser(complaint.userId);
+      if (user == null) return;
+      
+      // Check if the complaint has outdated user data
+      if (isUserDataOutdated(complaint.userDataVersion, user.lastUpdated)) {
+        // Update the complaint with current user data
+        await complaints.doc(complaint.id).update({
+          'userName': user.displayName,
+          'userPhotoURL': user.photoURL,
+          'userDataVersion': Timestamp.fromDate(user.lastUpdated),
+        });
+      }
+    } catch (e) {
+      print('Error ensuring updated user data for complaint: $e');
     }
   }
 
@@ -365,9 +442,8 @@ class FirestoreService {
   // Add a new comment
   Future<DocumentReference> addComment(CommentModel comment) async {
     try {
-      // Start a transaction to update both collections
-      final DocumentReference commentRef = await _firestore.runTransaction((transaction) async {
-        // Get the complaint document
+      return await _firestore.runTransaction<DocumentReference>((transaction) async {
+        // Get the complaint document to update its comment count
         final DocumentReference complaintRef = complaints.doc(comment.complaintId);
         final DocumentSnapshot complaintDoc = await transaction.get(complaintRef);
         
@@ -379,9 +455,9 @@ class FirestoreService {
         final data = complaintDoc.data() as Map<String, dynamic>;
         final int currentCommentCount = data['commentCount'] ?? 0;
         
-        // Add the new comment
-        final DocumentReference newCommentRef = comments.doc();
-        transaction.set(newCommentRef, comment.toMap());
+        // Add the comment
+        final commentRef = comments.doc();
+        transaction.set(commentRef, comment.toMap());
         
         // Update the comment count in the complaint document
         transaction.update(complaintRef, {
@@ -389,10 +465,8 @@ class FirestoreService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         
-        return newCommentRef;
+        return commentRef;
       });
-      
-      return commentRef;
     } catch (e) {
       print('Error adding comment: $e');
       throw e;

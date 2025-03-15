@@ -49,6 +49,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   bool _isSubmittingComment = false;
   Stream<List<CommentModel>>? _commentsStream;
   int _commentCount = 0;
+  bool _isDeleted = false; // Add this variable to track deleted status
 
   @override
   void initState() {
@@ -58,6 +59,13 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     _checkOwnership();
     _loadComments();
     _loadCommentCount();
+    // Check if complaint is deleted based on status
+    _isDeleted = _checkIfDeleted(widget.status);
+  }
+
+  // Add helper method to check if complaint is deleted
+  bool _checkIfDeleted(String? status) {
+    return status != null && status.startsWith('deleted');
   }
 
   Future<void> _loadVoteStatus() async {
@@ -138,7 +146,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   }
 
   Future<void> _handleUpvote() async {
-    if (_isVoting) return;
+    // Don't allow voting if complaint is deleted or voting is in progress
+    if (_isVoting || _isDeleted) return;
     
     setState(() {
       _isVoting = true;
@@ -166,7 +175,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   }
 
   Future<void> _handleDownvote() async {
-    if (_isVoting) return;
+    // Don't allow voting if complaint is deleted or voting is in progress
+    if (_isVoting || _isDeleted) return;
     
     setState(() {
       _isVoting = true;
@@ -226,6 +236,25 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteComment(String commentId) async {
+    try {
+      await _complaintService.deleteComment(commentId, widget.complaintId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comment deleted')),
+        );
+        // Update comment count after deletion
+        _loadCommentCount();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting comment: ${e.toString()}')),
         );
       }
     }
@@ -448,7 +477,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // User info and timestamp with status badge
+                        // User info and timestamp
                         Row(
                           children: [
                             CircleAvatar(
@@ -468,26 +497,6 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                               ),
                             ),
                             const Spacer(),
-                            // Status badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusDisplay['color'].withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                statusDisplay['text'],
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: statusDisplay['color'],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
                             Text(
                               widget.reportedAt,
                               style: TextStyle(
@@ -498,8 +507,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                           ],
                         ),
 
-                        // Display tags
-                        _displayTags(),
+                        const SizedBox(height: 12),
 
                         // Title
                         Text(
@@ -518,31 +526,22 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Location info
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, color: Colors.grey[600]),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Location: ${widget.latitude.toStringAsFixed(4)}, ${widget.longitude.toStringAsFixed(4)}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                        // Display tags - moved here below description
+                        _displayTags(),
+                        
                         const SizedBox(height: 16),
 
-                        // Voting buttons
+                        // Voting buttons - modify to show disabled state when deleted
                         Row(
                           children: [
                             IconButton(
                               icon: Icon(
                                 Icons.arrow_upward,
-                                color: _upvoted ? Colors.green : Colors.grey[600],
+                                color: _isDeleted 
+                                    ? Colors.grey[400] 
+                                    : (_upvoted ? Colors.green : Colors.grey[600]),
                               ),
-                              onPressed: _isVoting ? null : _handleUpvote,
+                              onPressed: _isVoting || _isDeleted ? null : _handleUpvote,
                             ),
                             _isVoting 
                               ? SizedBox(
@@ -557,19 +556,44 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                 )
                               : Text(
                                   '$_voteCount',
-                                  style: const TextStyle(fontSize: 16),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: _isDeleted ? Colors.grey[400] : Colors.black,
+                                  ),
                                 ),
                             IconButton(
                               icon: Icon(
                                 Icons.arrow_downward,
-                                color: _downvoted ? Colors.red : Colors.grey[600],
+                                color: _isDeleted 
+                                    ? Colors.grey[400] 
+                                    : (_downvoted ? Colors.red : Colors.grey[600]),
                               ),
-                              onPressed: _isVoting ? null : _handleDownvote,
+                              onPressed: _isVoting || _isDeleted ? null : _handleDownvote,
                             ),
                             const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusDisplay['color'].withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                statusDisplay['text'],
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusDisplay['color'],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             IconButton(
-                              icon: Icon(Icons.mode_comment_outlined, color: Colors.grey[600]),
-                              onPressed: () {
+                              icon: Icon(Icons.mode_comment_outlined, 
+                                  color: _isDeleted ? Colors.grey[400] : Colors.grey[600]),
+                              onPressed: _isDeleted ? null : () {
                                 // Focus the comment field
                                 FocusScope.of(context).requestFocus(FocusNode());
                                 _commentController.selection = TextSelection.fromPosition(
@@ -580,29 +604,42 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                             Text(
                               '$_commentCount',
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color: _isDeleted ? Colors.grey[400] : Colors.grey[600],
                                 fontSize: 16,
                               ),
                             ),
-                            const SizedBox(width: 8),
                           ],
                         ),
 
                         const Divider(thickness: 1),
 
-                        // Comments section title
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Comments',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        // Comments section title with location info only (status removed)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              const Text(
+                                'Comments',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              // Location info
+                              Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${widget.latitude.toStringAsFixed(4)}, ${widget.longitude.toStringAsFixed(4)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-
+                        
                         // Comments list with stream builder
                         StreamBuilder<List<CommentModel>>(
                           stream: _commentsStream,
@@ -674,6 +711,39 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                                     fontSize: 12,
                                                   ),
                                                 ),
+                                                // Show delete button only for user's own comments
+                                                if (comment.userId == _complaintService.currentUser?.uid)
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(),
+                                                    color: Colors.grey[600],
+                                                    onPressed: () {
+                                                      // Confirmation dialog
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (context) => AlertDialog(
+                                                          title: const Text('Delete Comment'),
+                                                          content: const Text('Are you sure you want to delete this comment?'),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () => Navigator.of(context).pop(),
+                                                              child: const Text('Cancel'),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () {
+                                                                Navigator.of(context).pop();
+                                                                if (comment.id != null) {
+                                                                  _handleDeleteComment(comment.id!);
+                                                                }
+                                                              },
+                                                              child: const Text('Delete'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
                                               ],
                                             ),
                                             const SizedBox(height: 4),
@@ -702,11 +772,11 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
             ),
           ),
 
-          // Comment input field
+          // Comment input field - show disabled version if complaint is deleted
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _isDeleted ? Colors.grey[100] : Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.3),
@@ -715,41 +785,60 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: _complaintService.currentUser?.photoURL != null
-                    ? NetworkImage(_complaintService.currentUser!.photoURL!)
-                    : null,
-                  child: _complaintService.currentUser?.photoURL == null
-                    ? const Icon(Icons.person, size: 18)
-                    : null,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration(
-                      hintText: 'Add a comment...',
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+            child: _isDeleted 
+              // Show disabled message when complaint is deleted
+              ? Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.grey[300],
+                      child: const Icon(Icons.comment_outlined, color: Colors.grey, size: 18),
                     ),
-                  ),
-                ),
-                _isSubmittingComment 
-                  ? const SizedBox(
-                      width: 20, 
-                      height: 20, 
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : TextButton(
-                      onPressed: _addComment,
-                      child: const Text('Post'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Comments are disabled for deleted complaints',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
                     ),
-              ],
-            ),
+                  ],
+                )
+              // Show normal comment input when complaint is not deleted
+              : Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundImage: _complaintService.currentUser?.photoURL != null
+                        ? NetworkImage(_complaintService.currentUser!.photoURL!)
+                        : null,
+                      child: _complaintService.currentUser?.photoURL == null
+                        ? const Icon(Icons.person, size: 18)
+                        : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _commentController,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a comment...',
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
+                    ),
+                    _isSubmittingComment 
+                      ? const SizedBox(
+                          width: 20, 
+                          height: 20, 
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : TextButton(
+                          onPressed: _addComment,
+                          child: const Text('Post'),
+                        ),
+                  ],
+                ),
           ),
         ],
       ),

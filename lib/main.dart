@@ -6,7 +6,9 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'services/user_data_sync_service.dart'; // Add import for sync service
 import 'router.dart';
+import 'dart:async'; // For Timer
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +19,7 @@ Future<void> main() async {
 
   final authService = AuthService();
   final appRouter = AppRouter(authService);
+  final syncService = UserDataSyncService(); // Initialize sync service
 
   // Firebase app check
   // To add the debug token to appcheck, look for the line below after flutter run 
@@ -36,7 +39,35 @@ Future<void> main() async {
     );
   }
 
+  // Initialize periodic sync for authenticated users
+  _setupPeriodicSync();
+
   runApp(MyApp(appRouter: appRouter));
+}
+
+// Setup periodic background sync
+void _setupPeriodicSync() {
+  final syncService = UserDataSyncService();
+  final auth = FirebaseAuth.instance;
+  
+  // Run sync when auth state changes (user logs in)
+  auth.authStateChanges().listen((User? user) {
+    if (user != null) {
+      // User is signed in, initialize sync
+      syncService.initializeSync();
+    }
+  });
+  
+  // Set up periodic sync every 30 minutes for active users
+  // Only if app is in foreground
+  const syncInterval = Duration(minutes: 30);
+  Timer.periodic(syncInterval, (timer) async {
+    final currentUser = auth.currentUser;
+    if (currentUser != null) {
+      print('Running periodic user data sync');
+      await syncService.syncUserData();
+    }
+  });
 }
 
 class MyApp extends StatelessWidget {

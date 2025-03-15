@@ -56,5 +56,10 @@ service cloud.firestore {
       // Only the comment author can update or delete
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
+
+    // Anyone can read complaint tags
+    match /library/complaint{
+      allow read: if true;
+    }
   }
 }

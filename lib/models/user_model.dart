@@ -7,6 +7,7 @@ class UserModel {
   final String? photoURL;
   final DateTime createdAt;
   final DateTime lastLogin;
+  final DateTime lastUpdated; // New field to track profile updates
 
   UserModel({
     required this.uid,
@@ -15,7 +16,8 @@ class UserModel {
     this.photoURL,
     required this.createdAt,
     required this.lastLogin,
-  });
+    DateTime? lastUpdated, // Optional parameter with default
+  }) : this.lastUpdated = lastUpdated ?? DateTime.now();
 
   factory UserModel.fromFirestore(Map<String, dynamic> data) {
     return UserModel(
@@ -25,6 +27,9 @@ class UserModel {
       photoURL: data['photoURL'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       lastLogin: (data['lastLogin'] as Timestamp).toDate(),
+      lastUpdated: data['lastUpdated'] != null 
+          ? (data['lastUpdated'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -36,6 +41,7 @@ class UserModel {
       'photoURL': photoURL,
       'createdAt': createdAt,
       'lastLogin': lastLogin,
+      'lastUpdated': lastUpdated, // Include lastUpdated in the map
     };
   }
 }

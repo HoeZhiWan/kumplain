@@ -8,6 +8,7 @@ class CommentModel {
   final String? userPhotoURL;
   final String text;
   final DateTime createdAt;
+  final DateTime userDataVersion; // New field to track user data version
   
   CommentModel({
     this.id,
@@ -17,7 +18,8 @@ class CommentModel {
     this.userPhotoURL,
     required this.text,
     required this.createdAt,
-  });
+    DateTime? userDataVersion, // Optional parameter with default
+  }) : this.userDataVersion = userDataVersion ?? DateTime.now();
 
   factory CommentModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -29,6 +31,9 @@ class CommentModel {
       userPhotoURL: data['userPhotoURL'],
       text: data['text'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      userDataVersion: data['userDataVersion'] != null 
+          ? (data['userDataVersion'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -40,6 +45,7 @@ class CommentModel {
       'userPhotoURL': userPhotoURL,
       'text': text,
       'createdAt': Timestamp.fromDate(createdAt),
+      'userDataVersion': Timestamp.fromDate(userDataVersion), // Include userDataVersion in the map
     };
   }
 

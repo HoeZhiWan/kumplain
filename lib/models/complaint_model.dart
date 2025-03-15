@@ -14,7 +14,8 @@ class ComplaintModel {
   final String? imageUrl;
   final String? status;  
   final List<String>? tags;
-  final int commentCount; // Added comment count property
+  final int commentCount;
+  final DateTime userDataVersion; // New field to track user data version
   
   ComplaintModel({
     this.id,
@@ -30,8 +31,9 @@ class ComplaintModel {
     this.imageUrl,
     this.status,
     this.tags,
-    this.commentCount = 0, // Default to 0
-  });
+    this.commentCount = 0,
+    DateTime? userDataVersion, // Optional parameter with default
+  }) : this.userDataVersion = userDataVersion ?? DateTime.now();
 
   factory ComplaintModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -49,7 +51,10 @@ class ComplaintModel {
       imageUrl: data['imageUrl'],
       status: data['status'],
       tags: data['tags']?.cast<String>(),
-      commentCount: data['commentCount'] ?? 0, // Read comment count from Firestore
+      commentCount: data['commentCount'] ?? 0,
+      userDataVersion: data['userDataVersion'] != null 
+          ? (data['userDataVersion'] as Timestamp).toDate() 
+          : null,
     );
   }
 
@@ -67,7 +72,8 @@ class ComplaintModel {
       'imageUrl': imageUrl,
       'status': status,
       'tags': tags,
-      'commentCount': commentCount, // Add comment count to the map
+      'commentCount': commentCount,
+      'userDataVersion': Timestamp.fromDate(userDataVersion), // Include userDataVersion in the map
     };
   }
 

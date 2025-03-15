@@ -3,11 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/complaint_model.dart';
 import '../models/comment_model.dart';
 import 'firestore_service.dart';
+import 'user_data_sync_service.dart'; // Add import for sync service
 
 class ComplaintService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserDataSyncService _syncService = UserDataSyncService();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -32,6 +34,12 @@ class ComplaintService {
         throw Exception('You must be logged in to submit a complaint');
       }
 
+      // Get current user profile from Firestore for the most recent data
+      final userProfile = await _firestoreService.getUser(currentUser!.uid);
+      final String userName = userProfile?.displayName ?? currentUser!.displayName ?? 'Anonymous User';
+      final String? userPhotoURL = userProfile?.photoURL ?? currentUser!.photoURL;
+      final DateTime userDataVersion = userProfile?.lastUpdated ?? DateTime.now();
+
       // Create a new complaint with user info
       final complaint = ComplaintModel(
         title: title,
@@ -39,12 +47,13 @@ class ComplaintService {
         latitude: latitude,
         longitude: longitude,
         userId: currentUser!.uid,
-        userName: currentUser!.displayName ?? 'Anonymous User',
-        userPhotoURL: currentUser!.photoURL,
+        userName: userName,
+        userPhotoURL: userPhotoURL,
         createdAt: DateTime.now(),
         imageUrl: imageUrl,
         status: 'unresolved',
         tags: tags,
+        userDataVersion: userDataVersion, // Include user data version
       );
 
       // Add the complaint to Firestore
@@ -65,6 +74,12 @@ class ComplaintService {
 
   // Get all complaints
   Stream<List<ComplaintModel>> getAllComplaints() {
+    // Start a background sync when complaints are loaded
+    if (currentUser != null) {
+      // Use a microtask to avoid blocking the stream
+      Future.microtask(() => _syncService.syncUserData());
+    }
+    
     return _firestoreService.getComplaints().map((complaints) {
       print('Retrieved ${complaints.length} complaints');
       for (var complaint in complaints) {
@@ -82,9 +97,24 @@ class ComplaintService {
     return _firestoreService.getUserComplaints(currentUser!.uid);
   }
 
-  // Get a specific complaint
-  Future<ComplaintModel?> getComplaint(String id) {
-    return _firestoreService.getComplaint(id);
+  // Get a specific complaint - now with user data check
+  Future<ComplaintModel?> getComplaint(String id) async {
+    try {
+      final complaint = await _firestoreService.getComplaint(id);
+      
+      if (complaint != null) {
+        // Check if this is the current user's complaint and ensure data is updated
+        if (complaint.userId == currentUser?.uid) {
+          // Trigger a background sync to ensure complaint has up-to-date user data
+          _syncService.syncUserData();
+        }
+      }
+      
+      return complaint;
+    } catch (e) {
+      print('Error in getComplaint: $e');
+      return _firestoreService.getComplaint(id);
+    }
   }
 
   // Get user complaint stats for profile page
@@ -290,14 +320,21 @@ class ComplaintService {
         throw Exception('User not logged in');
       }
 
+      // Get current user profile from Firestore for the most recent data
+      final userProfile = await _firestoreService.getUser(currentUser!.uid);
+      final String userName = userProfile?.displayName ?? currentUser!.displayName ?? 'Anonymous User';
+      final String? userPhotoURL = userProfile?.photoURL ?? currentUser!.photoURL;
+      final DateTime userDataVersion = userProfile?.lastUpdated ?? DateTime.now();
+
       // Create a new comment with user info
       final comment = CommentModel(
         complaintId: complaintId,
         userId: currentUser!.uid,
-        userName: currentUser!.displayName ?? 'Anonymous User',
-        userPhotoURL: currentUser!.photoURL,
+        userName: userName,
+        userPhotoURL: userPhotoURL,
         text: text,
         createdAt: DateTime.now(),
+        userDataVersion: userDataVersion, // Include user data version
       );
 
       // Add the comment to Firestore
