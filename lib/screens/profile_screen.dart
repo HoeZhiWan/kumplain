@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
 import '../services/complaint_service.dart';
+import '../models/user_model.dart';
+import 'profile_edit_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,21 +17,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ComplaintService _complaintService = ComplaintService();
   
   bool _isLoading = true;
+  bool _isLoadingProfile = true;
   int _submittedComplaints = 0;
   int _activeComplaints = 0;
   int _resolvedComplaints = 0;
+  UserModel? _userProfile;
 
   @override
   void initState() {
     super.initState();
-    _loadUserStats();
+    _loadUserData();
   }
-
-  Future<void> _loadUserStats() async {
+  
+  // Load both stats and user profile data
+  Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
+      _isLoadingProfile = true;
     });
     
+    // Load data in parallel
+    await Future.wait([
+      _loadUserStats(),
+      _loadUserProfile(),
+    ]);
+  }
+  
+  // Load complaint statistics
+  Future<void> _loadUserStats() async {
     try {
       final stats = await _complaintService.getDetailedUserStats();
       if (mounted) {
@@ -52,14 +67,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
+  
+  // Load user profile from Firestore
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await _authService.getCurrentUserProfile();
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+          _isLoadingProfile = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading profile: ${e.toString()}')),
+        );
+      }
+    }
+  }
+  
+  // Navigate to profile edit screen
+  Future<void> _navigateToEditProfile() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+    
+    // Prioritize Firestore profile data if available
+    final displayName = _userProfile?.displayName ?? user.displayName ?? 'User';
+    final photoURL = _userProfile?.photoURL ?? user.photoURL;
+    
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileEditScreen(
+          initialDisplayName: displayName,
+          initialPhotoURL: photoURL,
+        ),
+      ),
+    );
+    
+    // Reload profile data if changes were made
+    if (result == true) {
+      _loadUserData();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
+    
+    // Prioritize Firestore profile data if available (UI Display Strategy)
+    final displayName = _userProfile?.displayName ?? user?.displayName ?? 'User';
+    final email = _userProfile?.email ?? user?.email ?? 'No email';
+    final photoURL = _userProfile?.photoURL ?? user?.photoURL;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
+        actions: [
+          // Edit profile button
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _navigateToEditProfile,
+            tooltip: 'Edit profile',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -71,21 +146,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Center(
                 child: Column(
                   children: [
-                    // User avatar
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: user?.photoURL != null
-                          ? NetworkImage(user!.photoURL!)
-                          : null,
-                      child: user?.photoURL == null
-                          ? const Icon(Icons.person, size: 50)
-                          : null,
+                    // User avatar with loading indicator if needed
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundImage: photoURL != null
+                              ? NetworkImage(photoURL)
+                              : null,
+                          child: photoURL == null
+                              ? const Icon(Icons.person, size: 50)
+                              : null,
+                        ),
+                        if (_isLoadingProfile)
+                          CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).primaryColor.withOpacity(0.7),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     
                     // User name
                     Text(
-                      user?.displayName ?? 'User',
+                      displayName,
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -95,12 +182,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     
                     // User email
                     Text(
-                      user?.email ?? 'No email',
+                      email,
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey[600],
                       ),
                     ),
+                    // Last updated info if available
+                    if (_userProfile != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Last updated: ${_formatDate(_userProfile!.lastUpdated)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -158,6 +257,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+  
+  // Format date for display
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
 
   Widget _buildStats(BuildContext context) {
     return Row(
@@ -176,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: _buildStatCard(
             context,
             'Active',
-            _activeComplaints.toString(), // Now shows actual active count
+            _activeComplaints.toString(),
             Icons.check_circle,
             Colors.green,
           ),

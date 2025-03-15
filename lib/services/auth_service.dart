@@ -100,7 +100,7 @@ class AuthService {
     }
   }
 
-  // Update user's profile data manually (for future profile edit screen)
+  // Update user's profile data with enhanced procedure
   Future<void> updateUserProfile({
     String? displayName,
     String? photoURL,
@@ -110,15 +110,26 @@ class AuthService {
     }
     
     try {
-      // First update Firebase Auth
-      await currentUser!.updateDisplayName(displayName);
-      await currentUser!.updatePhotoURL(photoURL);
+      print('Updating user profile with new data: name=$displayName, photo=$photoURL');
       
-      // Then get existing user data
+      // 1. First update Firebase Auth (Central identity)
+      if (displayName != null && displayName.isNotEmpty) {
+        await currentUser!.updateDisplayName(displayName);
+        print('Updated Auth display name to: $displayName');
+      }
+      
+      if (photoURL != null) {
+        await currentUser!.updatePhotoURL(photoURL);
+        print('Updated Auth photo URL to: $photoURL');
+      }
+      
+      // 2. Then get existing user data from Firestore
       final existingUser = await _firestoreService.getUser(currentUser!.uid);
-      if (existingUser == null) throw Exception('User not found in Firestore');
+      if (existingUser == null) {
+        throw Exception('User not found in Firestore');
+      }
       
-      // Create updated user model
+      // 3. Create updated user model with new lastUpdated timestamp
       final updatedUser = UserModel(
         uid: currentUser!.uid,
         email: currentUser!.email ?? existingUser.email,
@@ -129,11 +140,16 @@ class AuthService {
         lastUpdated: DateTime.now(), // Update timestamp
       );
       
-      // Update Firestore and propagate changes
-      await _firestoreService.setUser(updatedUser);
+      print('Prepared updated user model with lastUpdated: ${updatedUser.lastUpdated}');
       
-      // Force sync after profile update to ensure all documents are updated
+      // 4. Update Firestore and propagate changes to all user's documents
+      await _firestoreService.setUser(updatedUser);
+      print('Updated user document in Firestore');
+      
+      // 5. Force sync after profile update to ensure all documents are updated
       await _syncService.syncUserData();
+      print('Completed background sync of user data');
+      
     } catch (e) {
       print('Error updating user profile: $e');
       throw e;

@@ -7,6 +7,7 @@ import 'screens/auth_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/submit_complaint_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/profile_edit_screen.dart'; // Add import for the new screen
 import 'services/auth_service.dart';
 import 'screens/complaint_details_screen.dart';
 import 'services/complaint_service.dart';
@@ -60,6 +61,16 @@ class AppRouter {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) {
+          final user = authService.currentUser;
+          return ProfileEditScreen(
+            initialDisplayName: user?.displayName ?? 'User',
+            initialPhotoURL: user?.photoURL,
+          );
+        },
       ),
       // Add new route for user complaints
       GoRoute(
