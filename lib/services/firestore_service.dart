@@ -442,31 +442,34 @@ class FirestoreService {
   // Add a new comment
   Future<DocumentReference> addComment(CommentModel comment) async {
     try {
-      return await _firestore.runTransaction<DocumentReference>((transaction) async {
-        // Get the complaint document to update its comment count
+      // Create the comment document first
+      final commentRef = comments.doc();
+      await commentRef.set(comment.toMap());
+      
+      // Then try to update the comment count on the complaint document
+      // If this fails due to permissions, we'll still have created the comment
+      try {
         final DocumentReference complaintRef = complaints.doc(comment.complaintId);
-        final DocumentSnapshot complaintDoc = await transaction.get(complaintRef);
+        final DocumentSnapshot complaintDoc = await complaintRef.get();
         
-        if (!complaintDoc.exists) {
-          throw 'Complaint not found';
+        if (complaintDoc.exists) {
+          // Get current comment count
+          final data = complaintDoc.data() as Map<String, dynamic>;
+          final int currentCommentCount = data['commentCount'] ?? 0;
+          
+          // Update the comment count in the complaint document
+          await complaintRef.update({
+            'commentCount': currentCommentCount + 1,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
-        
-        // Get current comment count
-        final data = complaintDoc.data() as Map<String, dynamic>;
-        final int currentCommentCount = data['commentCount'] ?? 0;
-        
-        // Add the comment
-        final commentRef = comments.doc();
-        transaction.set(commentRef, comment.toMap());
-        
-        // Update the comment count in the complaint document
-        transaction.update(complaintRef, {
-          'commentCount': currentCommentCount + 1,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        
-        return commentRef;
-      });
+      } catch (e) {
+        // Log the error but don't fail the comment creation
+        print('Warning: Could not update comment count: $e');
+        // The comment is still created even if we can't update the count
+      }
+      
+      return commentRef;
     } catch (e) {
       print('Error adding comment: $e');
       throw e;

@@ -341,7 +341,11 @@ class ComplaintService {
       final docRef = await _firestoreService.addComment(comment);
       return docRef.id;
     } catch (e) {
-      throw 'Error adding comment: ${e.toString()}';
+      if (e.toString().contains('permission-denied')) {
+        throw 'You don\'t have permission to comment. Please check your login status.';
+      } else {
+        throw 'Error adding comment: ${e.toString()}';
+      }
     }
   }
 
