@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/firebase_storage_service.dart';
 import '../services/firestore_service.dart';
 import '../services/complaint_service.dart';
+import '../services/google_generative_ai_service.dart';
 
 class SubmitComplaintScreen extends StatefulWidget {
   final double? latitude;
@@ -25,10 +26,10 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   XFile? _selectedImage;
-  List<String> _tags = [];
+  List<String> _selectedTags = [];
   bool _isSubmitting = false;
   final ComplaintService _complaintService = ComplaintService();
-  List<String> _availableTags = [];
+  late final List<String> _availableTags;
 
   @override
   void initState() {
@@ -45,7 +46,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     final List<String>? selectedTags = await showDialog<List<String>>(
       context: context,
       builder: (context) {
-        final List<String> tempSelectedTags = List.from(_tags);
+        final List<String> tempSelectedTags = List.from(_selectedTags);
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -87,7 +88,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
 
     if (selectedTags != null) {
       setState(() {
-        _tags = selectedTags;
+        _selectedTags = selectedTags;
       });
     }
   }
@@ -139,11 +140,19 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
 
     try {
       final String? imageUrl;
+      String? aiTag;
+      String? aiDescription;
       if(_selectedImage != null){
+        // Analyze image using Google Generative AI
+        final response = await GoogleGenerativeAIService().analyzeImage(_selectedImage!, _availableTags);
+        aiTag = response['tag'];
+        aiDescription = response['description'];
+
+        print("AI Tag: $aiTag");
+        print("AI Description: $aiDescription");
+
         //Upload image to Firebase Storage
-        imageUrl = await FirebaseStorageService().uploadImage(
-          _selectedImage!, 
-        );
+        imageUrl = await FirebaseStorageService().uploadImage( _selectedImage!);
 
       } else{
         imageUrl = null;
@@ -156,7 +165,9 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
         latitude: widget.latitude ?? 0.0,
         longitude: widget.longitude ?? 0.0,
         imageUrl: imageUrl,
-        tags: _tags,
+        tags: _selectedTags,
+        aiTag: aiTag,
+        aiDescription: aiDescription,
       );
       
       if (mounted) {
@@ -191,7 +202,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     }
   }
 
-  //Select image from gallery, then compress the image
+  //Select image from gallery
   Future<void> _selectImage(ImageSource source) async {
     final XFile? pickedImage = await ImagePicker().pickImage(source: source);
     if(pickedImage != null && mounted){
@@ -283,11 +294,11 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    _tags.isEmpty
+                    _selectedTags.isEmpty
                         ? const Text('No tags selected')
                         : Wrap(
                             spacing: 8,
-                            children: _tags.map((tag) {
+                            children: _selectedTags.map((tag) {
                               return Chip(
                                 label: Text(tag),
                               );

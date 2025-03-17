@@ -16,6 +16,8 @@ class ComplaintModel {
   final List<String>? tags;
   final int commentCount;
   final DateTime userDataVersion; // New field to track user data version
+  final String? aiTag;
+  final String? aiDescription;
   
   ComplaintModel({
     this.id,
@@ -33,6 +35,8 @@ class ComplaintModel {
     this.tags,
     this.commentCount = 0,
     DateTime? userDataVersion, // Optional parameter with default
+    this.aiTag,
+    this.aiDescription,
   }) : this.userDataVersion = userDataVersion ?? DateTime.now();
 
   factory ComplaintModel.fromFirestore(DocumentSnapshot doc) {
@@ -55,6 +59,8 @@ class ComplaintModel {
       userDataVersion: data['userDataVersion'] != null 
           ? (data['userDataVersion'] as Timestamp).toDate() 
           : null,
+      aiTag: data['aiTag'],
+      aiDescription: data['aiDescription'],
     );
   }
 
@@ -74,6 +80,8 @@ class ComplaintModel {
       'tags': tags,
       'commentCount': commentCount,
       'userDataVersion': Timestamp.fromDate(userDataVersion), // Include userDataVersion in the map
+      'aiTag': aiTag,
+      'aiDescription': aiDescription,
     };
   }
 
