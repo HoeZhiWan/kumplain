@@ -11,11 +11,13 @@ import '../services/google_generative_ai_service.dart';
 class SubmitComplaintScreen extends StatefulWidget {
   final double? latitude;
   final double? longitude;
+  final XFile? initialImage;
   
   const SubmitComplaintScreen({
     super.key, 
     this.latitude, 
     this.longitude,
+    this.initialImage,
   });
 
   @override
@@ -40,6 +42,9 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   Future<void> _loadTags() async {
     _availableTags = await FirestoreService().getTags();
     setState(() {});
+    if (widget.initialImage != null) {
+      _processInitialImage(widget.initialImage!); // Process the initial image
+    }
   }
 
   void _selectTags() async {
@@ -98,6 +103,43 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _processInitialImage(XFile image) async {
+    setState(() {
+      _selectedImage = image;
+    });
+
+    print("Initial image path: ${image.path}");
+
+    try {
+      final response = await GoogleGenerativeAIService().analyzeImage(image, _availableTags);
+      final String? aiTitle = response['title'];
+      final String? aiDescription = response['description'];
+      final String? aiTag = response['tag'];
+
+      setState(() {
+        _titleController.text = aiTitle ?? ''; // Set AI-generated tag as title
+        _descriptionController.text = aiDescription ?? ''; // Set AI-generated description
+      });
+
+      if(aiTag != null && _availableTags.contains(aiTag)) {
+        setState(() {
+          _selectedTags.add(aiTag); // Add AI-generated tag to selected tags
+        });
+      }
+
+      print("AI Title: $aiTitle");
+      print("AI Description: $aiDescription");
+    } catch (e) {
+      print("Error analyzing image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error analyzing image: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _submitComplaint() async {
@@ -313,7 +355,29 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
             // Image selection
             GestureDetector(
               onTap: () {
-                _selectImage(ImageSource.gallery);
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Selecting an image'),
+                    content: const Text('Choose an image source:'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _selectImage(ImageSource.camera);
+                        },
+                        child: const Text('Camera'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _selectImage(ImageSource.gallery);
+                        },
+                        child: const Text('Gallery'),
+                      ),
+                    ],
+                  ),
+                );
               },
               child: Container(
                 height: 200,

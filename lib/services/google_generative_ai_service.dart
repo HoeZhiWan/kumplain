@@ -13,13 +13,14 @@ class GoogleGenerativeAIService {
     }
     _model = GenerativeModel(
       apiKey: apiKey,
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash',
       generationConfig: GenerationConfig(
         temperature: 0,
         responseMimeType: 'application/json',
         responseSchema: Schema.object(properties: {
           'tag': Schema.string(description: "Tag for the image"),
           'description': Schema.string(description: "Description of the image"),
+          'title': Schema.string(description: "Title of the image"),
         })
       ),
     );
@@ -29,12 +30,10 @@ class GoogleGenerativeAIService {
     try{
       final prompt =
         'The following image is a complaint.'
-        'Provide a short description of what happened in the image.'
+        'Provide a short description and title of what happened in the image.'
         'Determine a tag that are best applied to the image.'
         'If the image is not a complaint, the tag selected should be "Spam" instead.'
         'The tags available are: ${tags.join(', ')}';
-        'Provide your response as a JSON object with the following format: {"tag": "", "description": ""}'
-        'Do not return your result as Markdown.';
       final bytes = await image.readAsBytes();
       final content = Content.multi([
         TextPart(prompt),
@@ -47,8 +46,8 @@ class GoogleGenerativeAIService {
         throw Exception('No response from model');
       }
 
-      if(jsonDecode(responses.text!) case {'tag' : String tag , 'description' : String description}){
-        return {'tag': tag, 'description': description};
+      if(jsonDecode(responses.text!) case {'tag' : String tag , 'description' : String description, 'title' : String title}) {
+        return {'tag': tag, 'description': description, 'title': title};
       } else {
         throw Exception('Invalid response format');
       }

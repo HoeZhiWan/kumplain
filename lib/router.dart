@@ -2,6 +2,7 @@ import 'dart:async';  // Add this import for StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'screens/auth_screen.dart';
 import 'screens/map_screen.dart';
@@ -55,7 +56,10 @@ class AppRouter {
           double? lng = state.extra != null 
               ? (state.extra as Map<String, dynamic>)['longitude'] as double? 
               : null;
-          return SubmitComplaintScreen(latitude: lat, longitude: lng);
+          XFile? image = state.extra != null 
+              ? (state.extra as Map<String, dynamic>)['initialImage'] as XFile? 
+              : null;
+          return SubmitComplaintScreen(latitude: lat, longitude: lng, initialImage: image);
         },
       ),
       GoRoute(

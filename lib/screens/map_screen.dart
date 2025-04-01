@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../router.dart';
 import '../services/map_service.dart';
@@ -455,7 +456,54 @@ class _MapScreenState extends State<MapScreen>
       );
     }
 
+    if(!_isSelectionMode) {
+      overlays.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14.0, 0, 0, 40.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (!_isSelectionMode)
+                FloatingActionButton.extended(
+                  heroTag: null,
+                  onPressed: _quickSubmission,
+                  label: const Text('Quick Submission'),
+                )
+            ],
+                ),
+        ),
+      );
+    }
+
     return overlays;
+  }
+
+  Future<void> _quickSubmission() async {
+    if (_userLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your location is not available.')),
+      );
+      return;
+    }
+
+    try {
+      final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image != null && mounted) {
+        context.push(
+          '/submit',
+          extra: {
+            'latitude': _userLocation!.latitude,
+            'longitude': _userLocation!.longitude,
+            'initialImage': image,
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Error during quick submission: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 
   @override
