@@ -19,8 +19,8 @@ class GoogleGenerativeAIService {
         responseMimeType: 'application/json',
         responseSchema: Schema.object(properties: {
           'tag': Schema.string(description: "Tag for the image"),
-          'description': Schema.string(description: "Description of the image"),
-          'title': Schema.string(description: "Title of the image"),
+          'description': Schema.string(description: "Description of the complaint"),
+          'title': Schema.string(description: "Title of the complaint"),
         })
       ),
     );
@@ -30,14 +30,15 @@ class GoogleGenerativeAIService {
     try{
       final prompt =
         'The following image is a complaint.'
-        'Provide a short description and title of what happened in the image.'
+        'Provide a short description and title of the complaint.'
         'Determine a tag that are best applied to the image.'
-        'If the image is not a complaint, the tag selected should be "Spam" instead.'
+        'If the image is not a complaint, provide an empty description and title, and the tag selected should be "Spam" instead.'
         'The tags available are: ${tags.join(', ')}';
       final bytes = await image.readAsBytes();
+      
       final content = Content.multi([
-        TextPart(prompt),
         DataPart("image/*", bytes),
+        TextPart(prompt),
       ]);
 
       final responses = await _model.generateContent([content]);
@@ -45,6 +46,8 @@ class GoogleGenerativeAIService {
       if (responses.text == null) {
         throw Exception('No response from model');
       }
+
+      print(responses.text!);
 
       if(jsonDecode(responses.text!) case {'tag' : String tag , 'description' : String description, 'title' : String title}) {
         return {'tag': tag, 'description': description, 'title': title};

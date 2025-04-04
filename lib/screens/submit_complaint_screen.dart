@@ -118,19 +118,33 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
       final String? aiDescription = response['description'];
       final String? aiTag = response['tag'];
 
+      print("AI Title: $aiTitle");
+      print("AI Description: $aiDescription");
+
+      if(aiTag != null) {
+        if (aiTag == 'Spam') {
+          // If the AI tag is "Spam", show a warning message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The image was classified as spam. Please review it.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+
+          return;
+        } else if (!_availableTags.contains(aiTag)) {
+            // Add the AI-generated tag to the selected tags
+          setState(() {
+            _selectedTags.add(aiTag); // Add AI-generated tag to selected tags
+          });
+        }
+      }
+
       setState(() {
         _titleController.text = aiTitle ?? ''; // Set AI-generated tag as title
         _descriptionController.text = aiDescription ?? ''; // Set AI-generated description
       });
 
-      if(aiTag != null && _availableTags.contains(aiTag)) {
-        setState(() {
-          _selectedTags.add(aiTag); // Add AI-generated tag to selected tags
-        });
-      }
-
-      print("AI Title: $aiTitle");
-      print("AI Description: $aiDescription");
     } catch (e) {
       print("Error analyzing image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
